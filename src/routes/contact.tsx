@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Layout } from "@/components/site/Layout";
 import { SectionHeader } from "@/components/site/SectionHeader";
-import { submitBindingQuoteRequest } from "@/lib/web3forms";
+import { submitBindingQuoteRequest } from "@/lib/contact-form";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
