@@ -1,12 +1,9 @@
 const WEB3FORMS_ENDPOINT = "https://api.web3forms.com/submit";
 
-function getAccessKey() {
-  const key = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
-  if (!key) {
-    throw new Error("Web3Forms is not configured. Set VITE_WEB3FORMS_ACCESS_KEY.");
-  }
-  return key;
-}
+// Web3Forms access keys are safe to expose client-side (see web3forms.com docs).
+// Env var overrides for other environments; fallback keeps production working if Vercel env was added after build.
+const WEB3FORMS_ACCESS_KEY =
+  import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || "afbab1c7-a60d-4132-a7e3-6083959bc287";
 
 export type BindingQuotePayload = {
   name: string;
@@ -23,7 +20,7 @@ export async function submitBindingQuoteRequest(payload: BindingQuotePayload) {
       Accept: "application/json",
     },
     body: JSON.stringify({
-      access_key: getAccessKey(),
+      access_key: WEB3FORMS_ACCESS_KEY,
       subject: "Binding quote / consultation request — Jmax Builders",
       from_name: "Jmax Builders Website",
       name: payload.name,
