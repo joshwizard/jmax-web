@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Layout } from "@/components/site/Layout";
 import { SectionHeader } from "@/components/site/SectionHeader";
-import { supabase } from "@/integrations/supabase/client";
+import { submitBindingQuoteRequest } from "@/lib/web3forms";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -34,17 +34,22 @@ function Contact() {
     const parsed = contactSchema.safeParse(form);
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setBusy(true);
-    const { error } = await supabase.from("leads").insert({
-      name: parsed.data.name,
-      email: parsed.data.email,
-      phone: parsed.data.phone || null,
-      message: parsed.data.message,
-      source: "contact_form",
-    });
-    setBusy(false);
-    if (error) { toast.error("Could not send message", { description: error.message }); return; }
-    toast.success("Message sent", { description: "We'll get back to you within one business day." });
-    setForm({ name: "", email: "", phone: "", message: "" });
+    try {
+      await submitBindingQuoteRequest({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        phone: parsed.data.phone || undefined,
+        message: parsed.data.message,
+      });
+      toast.success("Message sent", { description: "We'll get back to you within one business day." });
+      setForm({ name: "", email: "", phone: "", message: "" });
+    } catch (error) {
+      toast.error("Could not send message", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -82,8 +87,8 @@ function Contact() {
           </div>
 
           <form onSubmit={submit} className="rounded-xl border border-border bg-card p-6 md:p-8">
-            <h3 className="font-display text-xl font-bold">Request a consultation</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Share a few details. We'll respond within one business day.</p>
+            <h3 className="font-display text-xl font-bold">Request a binding quote</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Share your project brief for a consultation or site visit. We'll respond within one business day.</p>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <Field label="Name" required value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
