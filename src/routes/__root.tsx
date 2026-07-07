@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -12,9 +12,7 @@ import { Toaster } from "sonner";
 import { useEffect } from "react";
 
 import appCss from "../styles.css?url";
-import { CartProvider } from "@/lib/cart";
-import { WishlistProvider } from "@/lib/wishlist";
-import { AuthProvider } from "@/lib/auth";
+import { AppProviders } from "@/components/AppProviders";
 import { Layout } from "@/components/site/Layout";
 
 function NotFoundComponent() {
@@ -106,7 +104,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <AppProviders>
+          {children}
+        </AppProviders>
         <Scripts />
       </body>
     </html>
@@ -122,18 +122,11 @@ function ScrollToTop() {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WishlistProvider>
-          <CartProvider>
-            <ScrollToTop />
-            <Outlet />
-            <Toaster position="top-right" richColors />
-          </CartProvider>
-        </WishlistProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <>
+      <ScrollToTop />
+      <Outlet />
+      <Toaster position="top-right" richColors />
+    </>
   );
 }
