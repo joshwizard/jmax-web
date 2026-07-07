@@ -39,8 +39,13 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useWishlist = () => {
-  const v = useContext(Ctx);
-  if (!v) throw new Error("useWishlist must be used within WishlistProvider");
-  return v;
+const emptyWishlist: WishlistCtx = {
+  ids: [],
+  has: () => false,
+  toggle: () => {},
+  remove: () => {},
+  clear: () => {},
+  count: 0,
 };
+
+export const useWishlist = () => useContext(Ctx) ?? emptyWishlist;
