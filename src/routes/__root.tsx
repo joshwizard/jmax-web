@@ -73,9 +73,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Jmax Builders — Construction, Plans & BOQs" },
       { property: "og:description", content: "Build with confidence. Plans and BOQs you can actually build from." },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "/jmax.png" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "/jmax.png" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "icon", href: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+    ],
     scripts: [
       {
         type: "application/ld+json",

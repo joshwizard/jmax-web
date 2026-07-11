@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ShoppingCart, HardHat, Menu, X, Heart, Calculator, User, LogOut } from "lucide-react";
+import { ShoppingCart, Menu, X, Heart, Calculator, User, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
@@ -29,9 +29,11 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
-          <span className="grid h-9 w-9 place-items-center rounded-md bg-ink text-ink-foreground">
-            <HardHat className="h-5 w-5" />
-          </span>
+          <img
+            src="/jmax.png"
+            alt="Jmax Builders"
+            className="h-9 w-9 object-contain"
+          />
           <span>
             Jmax<span className="text-primary">.</span>Builders
           </span>
