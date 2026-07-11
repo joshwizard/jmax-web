@@ -39,7 +39,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin + (redirect || "/account"),
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect && redirect.startsWith("/") ? redirect : "/account")}`,
             data: { full_name: name },
           },
         });
@@ -60,10 +60,12 @@ function AuthPage() {
   const google = async () => {
     setBusy(true);
     try {
+      const next = redirect && redirect.startsWith("/") ? redirect : "/account";
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin + (redirect || "/account"),
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(next)}`,
+          queryParams: { access_type: "offline", prompt: "select_account" },
         },
       });
       if (error) throw error;

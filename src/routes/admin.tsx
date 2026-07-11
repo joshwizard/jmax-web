@@ -32,7 +32,8 @@ function AdminLayout() {
             <ShieldAlert className="mx-auto h-8 w-8 text-destructive" />
             <h1 className="mt-3 font-display text-xl font-bold">Admin access required</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              No admin permissions on your account. If this is a fresh deployment, claim the first admin role below.
+              No admin permissions on your account. Sign in with <strong>jmaxbuildersltd@gmail.com</strong> to get admin,
+              or claim the first-admin role if this is a fresh deployment.
             </p>
             <ClaimFirstAdminButton />
           </div>
@@ -109,7 +110,7 @@ function ClaimFirstAdminButton() {
       className="mt-5 inline-flex items-center gap-1.5 rounded-md bg-ink px-4 py-2 text-xs font-bold text-ink-foreground hover:opacity-90 disabled:opacity-50"
       disabled={busy}
     >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />} Claim first-admin role
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />} Claim admin access
     </button>
   );
 }

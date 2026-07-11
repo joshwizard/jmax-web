@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ShoppingCart, Menu, X, Heart, Calculator, User, LogOut } from "lucide-react";
+import { ShoppingCart, Menu, X, Heart, Calculator, User, LogOut, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
@@ -99,6 +99,11 @@ export function Header() {
                   <Link to="/account" onClick={() => setMenuOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-accent">My account</Link>
                   <Link to="/account/library" onClick={() => setMenuOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-accent">Library</Link>
                   <Link to="/account/wishlist" onClick={() => setMenuOpen(false)} className="block rounded px-3 py-2 text-sm hover:bg-accent">Wishlist</Link>
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded px-3 py-2 text-sm font-semibold hover:bg-accent">
+                      <LayoutDashboard className="h-3.5 w-3.5" /> Admin
+                    </Link>
+                  )}
                   <button
                     onClick={async () => { setMenuOpen(false); await signOut(); toast.success("Signed out"); }}
                     className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-destructive hover:bg-accent"
@@ -140,9 +145,12 @@ export function Header() {
               </Link>
             ))}
             <div className="my-2 border-t border-border" />
-            {user ? (
+            {useruser ? (
               <>
                 <Link to="/account" onClick={() => setOpen(false)} className="rounded-md px-3 py-3 text-sm font-medium hover:bg-accent">My account</Link>
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setOpen(false)} className="rounded-md px-3 py-3 text-sm font-semibold hover:bg-accent">Admin</Link>
+                )}
                 <button
                   onClick={async () => { setOpen(false); await signOut(); toast.success("Signed out"); }}
                   className="rounded-md px-3 py-3 text-left text-sm font-medium text-destructive hover:bg-accent"

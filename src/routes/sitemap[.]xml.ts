@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { products } from "@/lib/products";
 import { projects } from "@/lib/projects";
 
-const SITE_URL = "https://jmaxbuilders.co.ke";
+const SITE_URL = "https://jmaxbuilders.com";
 
 const STATIC = [
   "/", "/about", "/services", "/portfolio", "/marketplace", "/calculator",

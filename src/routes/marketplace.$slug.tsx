@@ -17,7 +17,7 @@ export const Route = createFileRoute("/marketplace/$slug")({
   head: ({ params }) => {
     const p = getProduct(params.slug);
     if (!p) return { meta: [{ title: "Product · Jmax Builders" }] };
-    const url = `https://jmaxbuilders.co.ke/marketplace/${p.slug}`;
+    const url = `https://jmaxbuilders.com/marketplace/${p.slug}`;
     return {
       meta: [
         { title: `${p.title} · Jmax Builders` },
