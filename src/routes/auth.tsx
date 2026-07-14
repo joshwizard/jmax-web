@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { HardHat, Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Layout } from "@/components/site/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { ensureOwnerAdmin } from "@/lib/admin.functions";
 
 type Search = { redirect?: string };
 
@@ -20,6 +22,7 @@ function AuthPage() {
   const { redirect } = Route.useSearch();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const promoteOwner = useServerFn(ensureOwnerAdmin);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,12 +33,20 @@ function AuthPage() {
     if (!loading && user) navigate({ to: redirect || "/account" });
   }, [user, loading, navigate, redirect]);
 
+  const afterPasswordAuth = async () => {
+    try {
+      await promoteOwner({});
+    } catch {
+      // Non-fatal for regular users; owner promotion needs service role key.
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -44,10 +55,16 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        toast.success("Account created — you're signed in.");
+        if (data.session) {
+          await afterPasswordAuth();
+          toast.success("Account created — you're signed in.");
+        } else {
+          toast.success("Check your email to confirm your account, then sign in.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        await afterPasswordAuth();
         toast.success("Welcome back.");
       }
     } catch (err) {

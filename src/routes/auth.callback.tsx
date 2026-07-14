@@ -53,13 +53,15 @@ function AuthCallbackPage() {
 
         try {
           await promoteOwner({});
-        } catch {
+        } catch (promoteError) {
           // Non-fatal for regular users; owner promotion needs service role key.
+          console.warn("[auth] Owner admin promotion skipped:", promoteError);
         }
 
         if (cancelled) return;
+        // Drop OAuth params from the URL before navigating.
         const next = redirect && redirect.startsWith("/") ? redirect : "/account";
-        navigate({ to: next });
+        navigate({ to: next, replace: true });
       } catch (err) {
         if (cancelled) return;
         setMessage(err instanceof Error ? err.message : "Sign-in failed");

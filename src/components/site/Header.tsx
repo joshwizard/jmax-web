@@ -145,7 +145,7 @@ export function Header() {
               </Link>
             ))}
             <div className="my-2 border-t border-border" />
-            {useruser ? (
+            {user ? (
               <>
                 <Link to="/account" onClick={() => setOpen(false)} className="rounded-md px-3 py-3 text-sm font-medium hover:bg-accent">My account</Link>
                 {isAdmin && (

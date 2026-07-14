@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Plus, Upload, FileText, Image as ImageIcon, Download } from "lucide-react";
 import { products as seedProducts } from "@/lib/products";
+import { fileToBase64, uploadAdminFile } from "@/lib/storage.functions";
 
 type ProductRow = {
   id: string;
@@ -42,6 +44,7 @@ function ProductsAdmin() {
   const [editing, setEditing] = useState<Partial<ProductRow> | null>(null);
   const [busy, setBusy] = useState(false);
   const [importingSlug, setImportingSlug] = useState<string | null>(null);
+  const uploadFileFn = useServerFn(uploadAdminFile);
 
   const load = async () => {
     const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false });
@@ -132,21 +135,41 @@ function ProductsAdmin() {
 
   const uploadCover = async (file: File) => {
     if (!editing) return;
-    const path = `${editing.slug || "tmp"}-${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("product-covers").upload(path, file, { upsert: true });
-    if (error) return toast.error(error.message);
-    const { data } = supabase.storage.from("product-covers").getPublicUrl(path);
-    setEditing({ ...editing, cover_url: data.publicUrl });
-    toast.success("Cover uploaded");
+    try {
+      const path = `covers/${editing.slug || "tmp"}-${Date.now()}-${file.name}`;
+      const res = await uploadFileFn({
+        data: {
+          bucket: "product-covers",
+          path,
+          contentType: file.type || "image/jpeg",
+          dataBase64: await fileToBase64(file),
+        },
+      });
+      if (!res.publicUrl) throw new Error("Upload succeeded without a public URL");
+      setEditing({ ...editing, cover_url: res.publicUrl });
+      toast.success("Cover uploaded — click Save to apply");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Cover upload failed");
+    }
   };
 
   const uploadFile = async (file: File) => {
     if (!editing) return;
-    const path = `${editing.slug || "tmp"}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("product-files").upload(path, file, { upsert: true });
-    if (error) return toast.error(error.message);
-    setEditing({ ...editing, file_path: path });
-    toast.success("File uploaded");
+    try {
+      const path = `files/${editing.slug || "tmp"}/${Date.now()}-${file.name}`;
+      const res = await uploadFileFn({
+        data: {
+          bucket: "product-files",
+          path,
+          contentType: file.type || "application/octet-stream",
+          dataBase64: await fileToBase64(file),
+        },
+      });
+      setEditing({ ...editing, file_path: res.path });
+      toast.success("File uploaded — click Save to apply");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "File upload failed");
+    }
   };
 
   return (

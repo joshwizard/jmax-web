@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="No image">
+  <rect width="800" height="600" fill="#e8e4dc"/>
+  <rect x="280" y="200" width="240" height="160" rx="12" fill="none" stroke="#b8b2a6" stroke-width="4"/>
+  <circle cx="340" cy="250" r="18" fill="#b8b2a6"/>
+  <path d="M300 330 L360 280 L420 320 L480 260 L520 330 Z" fill="none" stroke="#b8b2a6" stroke-width="4" stroke-linejoin="round"/>
+  <text x="400" y="420" text-anchor="middle" fill="#8a8478" font-family="system-ui,sans-serif" font-size="22">No cover image</text>
+</svg>

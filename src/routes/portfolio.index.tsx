@@ -26,6 +26,7 @@ function Portfolio() {
   const [dbItems, setDbItems] = useState<Project[]>([]);
 
   useEffect(() => {
+    const seedBySlug = new Map(seedProjects.map((p) => [p.slug, p]));
     supabase
       .from("projects")
       .select("id, slug, title, category, year, location, duration, building_type, size, cover_url, summary")
@@ -34,26 +35,29 @@ function Portfolio() {
       .then(({ data }) => {
         if (!data) return;
         setDbItems(
-          data.map((r) => ({
-            id: r.id,
-            slug: r.slug,
-            title: r.title,
-            category: (r.category as ProjectCategory) || "Residential",
-            year: r.year || "",
-            location: r.location || "",
-            duration: r.duration || "",
-            buildingType: r.building_type || "",
-            size: r.size || "",
-            client: "",
-            cover: r.cover_url || "",
-            gallery: [],
-            summary: r.summary || "",
-            brief: "",
-            scope: [],
-            challenges: [],
-            outcomes: [],
-            stats: [],
-          }))
+          data.map((r) => {
+            const seed = seedBySlug.get(r.slug);
+            return {
+              id: r.id,
+              slug: r.slug,
+              title: r.title,
+              category: (r.category as ProjectCategory) || seed?.category || "Residential",
+              year: r.year || seed?.year || "",
+              location: r.location || seed?.location || "",
+              duration: r.duration || seed?.duration || "",
+              buildingType: r.building_type || seed?.buildingType || "",
+              size: r.size || seed?.size || "",
+              client: seed?.client || "",
+              cover: r.cover_url || seed?.cover || "/placeholder.svg",
+              gallery: seed?.gallery || [],
+              summary: r.summary || seed?.summary || "",
+              brief: seed?.brief || "",
+              scope: seed?.scope || [],
+              challenges: seed?.challenges || [],
+              outcomes: seed?.outcomes || [],
+              stats: seed?.stats || [],
+            };
+          })
         );
       });
   }, []);

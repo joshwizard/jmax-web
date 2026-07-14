@@ -32,7 +32,7 @@ function AdminLayout() {
             <ShieldAlert className="mx-auto h-8 w-8 text-destructive" />
             <h1 className="mt-3 font-display text-xl font-bold">Admin access required</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              No admin permissions on your account. Sign in with <strong>jmaxbuildersltd@gmail.com</strong> to get admin,
+              No admin permissions on your account. Sign in with an authorized admin account,
               or claim the first-admin role if this is a fresh deployment.
             </p>
             <ClaimFirstAdminButton />

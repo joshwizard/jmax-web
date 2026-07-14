@@ -33,6 +33,7 @@ function Marketplace() {
   const [dbItems, setDbItems] = useState<Product[]>([]);
 
   useEffect(() => {
+    const seedBySlug = new Map(seedProducts.map((p) => [p.slug, p]));
     supabase
       .from("products")
       .select("id, slug, title, category, price_kes, description, cover_url, bedrooms, bathrooms, area_sqft")
@@ -40,23 +41,31 @@ function Marketplace() {
       .then(({ data }) => {
         if (!data) return;
         setDbItems(
-          data.map((r): Product => ({
-            id: r.id,
-            slug: r.slug,
-            title: r.title,
-            type: (r.category as Product["type"]) === "BOQ" ? "BOQ" : "Plans",
-            buildingType: "Residential",
-            sqftBand: "Under 1,500",
-            price: r.price_kes,
-            image: r.cover_url || "/placeholder.svg",
-            cover: r.cover_url || "/placeholder.svg",
-            shortDescription: r.description || "",
-            discipline: [],
-            formats: ["PDF"],
-            bedrooms: r.bedrooms ?? undefined,
-            bathrooms: r.bathrooms ?? undefined,
-            areaSqft: r.area_sqft ?? undefined,
-          } as unknown as Product))
+          data.map((r): Product => {
+            const seed = seedBySlug.get(r.slug);
+            const image = r.cover_url || seed?.image || "/placeholder.svg";
+            return {
+              id: r.id,
+              slug: r.slug,
+              title: r.title,
+              type: (r.category as Product["type"]) === "BOQ" ? "BOQ" : "Plans",
+              buildingType: seed?.buildingType || "Residential",
+              sqftBand: seed?.sqftBand || "Under 1,500",
+              price: r.price_kes,
+              image,
+              preview: seed?.preview || image,
+              shortDescription: r.description || seed?.shortDescription || "",
+              longDescription: seed?.longDescription || r.description || "",
+              discipline: seed?.discipline || [],
+              formats: seed?.formats || ["PDF"],
+              inclusions: seed?.inclusions || [],
+              exclusions: seed?.exclusions || [],
+              deliverables: seed?.deliverables || [{ kind: "Architectural", price: r.price_kes }],
+              bedrooms: r.bedrooms ?? undefined,
+              bathrooms: r.bathrooms ?? undefined,
+              areaSqft: r.area_sqft ?? undefined,
+            } as unknown as Product;
+          })
         );
       });
   }, []);
