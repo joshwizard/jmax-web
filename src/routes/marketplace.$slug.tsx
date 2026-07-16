@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, X, ShieldCheck, FileDown, Mail, ShoppingCart, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { Layout } from "@/components/site/Layout";
@@ -8,10 +8,33 @@ import { TypeBadge } from "@/components/site/TypeBadge";
 import { ProductCard } from "@/components/site/ProductCard";
 import { RecentlyViewed } from "@/components/site/RecentlyViewed";
 import { ProductReviews } from "@/components/site/ProductReviews";
-import { getProduct, products, formatKES, type Deliverable, type Product } from "@/lib/products";
+import {
+  getProduct,
+  productFromDb,
+  products,
+  formatKES,
+  type Deliverable,
+  type Product,
+} from "@/lib/products";
+import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { pushRecent } from "@/lib/recentlyViewed";
+
+async function fetchProduct(slug: string): Promise<Product | null> {
+  const local = getProduct(slug);
+  if (local) return local;
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      "id, slug, title, category, price_kes, description, cover_url, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes",
+    )
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error || !data) return null;
+  return productFromDb(data, getProduct(data.slug));
+}
 
 export const Route = createFileRoute("/marketplace/$slug")({
   head: ({ params }) => {
@@ -50,11 +73,6 @@ export const Route = createFileRoute("/marketplace/$slug")({
       }],
     };
   },
-  loader: ({ params }) => {
-    const p = getProduct(params.slug);
-    if (!p) throw notFound();
-    return { product: p };
-  },
   notFoundComponent: () => (
     <Layout>
       <div className="container-page py-24 text-center">
@@ -75,21 +93,61 @@ export const Route = createFileRoute("/marketplace/$slug")({
 });
 
 function ProductPage() {
-  const { product: p } = Route.useLoaderData() as { product: Product };
+  const { slug } = Route.useParams();
+  const [p, setP] = useState<Product | null | undefined>(() => getProduct(slug) ?? undefined);
   const ORDER: Deliverable[] = ["Architectural", "Structural", "BOQ"];
-  const available = [...p.deliverables].sort(
-    (a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)
+  const available = useMemo(
+    () => (p ? [...p.deliverables].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)) : []),
+    [p],
   );
-  const [picked, setPicked] = useState<Record<Deliverable, boolean>>(() => {
-    const init = { Architectural: false, Structural: false, BOQ: false } as Record<Deliverable, boolean>;
-    if (available[0]) init[available[0].kind] = true;
-    return init;
+  const [picked, setPicked] = useState<Record<Deliverable, boolean>>({
+    Architectural: false,
+    Structural: false,
+    BOQ: false,
   });
   const { add } = useCart();
   const { has: isWished, toggle: toggleWish } = useWishlist();
   const navigate = useNavigate();
 
-  useEffect(() => { pushRecent(p.slug); }, [p.slug]);
+  useEffect(() => {
+    let cancelled = false;
+    const emptyPicked = { Architectural: false, Structural: false, BOQ: false } as Record<Deliverable, boolean>;
+    const pickFirst = (product: Product) => {
+      const first = product.deliverables[0]?.kind;
+      setPicked(first ? { ...emptyPicked, [first]: true } : emptyPicked);
+    };
+
+    const local = getProduct(slug);
+    if (local) {
+      setP(local);
+      pickFirst(local);
+      return;
+    }
+
+    setP(undefined);
+    setPicked(emptyPicked);
+    fetchProduct(slug).then((product) => {
+      if (cancelled) return;
+      setP(product);
+      if (product) pickFirst(product);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (p) pushRecent(p.slug);
+  }, [p]);
+
+  if (p === undefined) {
+    return (
+      <Layout>
+        <div className="container-page py-24 text-center text-sm text-muted-foreground">Loading…</div>
+      </Layout>
+    );
+  }
+  if (p === null) throw notFound();
 
   const wished = isWished(p.id);
   const selected = available.filter((d) => picked[d.kind]);

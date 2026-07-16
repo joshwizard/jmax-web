@@ -218,5 +218,74 @@ export const products: Product[] = [
 
 export const getProduct = (slug: string) => products.find((p) => p.slug === slug);
 
+/** URL-safe slug: lowercase, hyphens, no spaces. */
+export function slugify(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+type DbProductRow = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string | null;
+  price_kes: number;
+  description: string | null;
+  cover_url: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  area_sqft: number | null;
+  architectural_price_kes?: number | null;
+  structural_price_kes?: number | null;
+  boq_price_kes?: number | null;
+};
+
+/** Map a Supabase products row into the marketplace Product shape. */
+export function productFromDb(row: DbProductRow, seed?: Product): Product {
+  const type: ProductType = row.category === "BOQ" ? "BOQ" : "Plans";
+  const deliverables: Product["deliverables"] = [];
+  if (row.architectural_price_kes != null) {
+    deliverables.push({ kind: "Architectural", price: row.architectural_price_kes });
+  }
+  if (row.structural_price_kes != null) {
+    deliverables.push({ kind: "Structural", price: row.structural_price_kes });
+  }
+  if (row.boq_price_kes != null) {
+    deliverables.push({ kind: "BOQ", price: row.boq_price_kes });
+  }
+  if (deliverables.length === 0) {
+    deliverables.push(
+      type === "BOQ"
+        ? { kind: "BOQ", price: row.price_kes }
+        : { kind: "Architectural", price: row.price_kes },
+    );
+  }
+  const image = row.cover_url || seed?.image || "/placeholder.svg";
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    type,
+    buildingType: seed?.buildingType || "Residential",
+    sqftBand: seed?.sqftBand || "Under 1,500",
+    price: row.price_kes,
+    image,
+    preview: seed?.preview || image,
+    shortDescription: row.description || seed?.shortDescription || "",
+    longDescription: seed?.longDescription || row.description || "",
+    discipline: seed?.discipline || [],
+    formats: seed?.formats || ["PDF"],
+    inclusions: seed?.inclusions || [],
+    exclusions: seed?.exclusions || [],
+    deliverables,
+    measurementBasis: seed?.measurementBasis,
+    units: seed?.units,
+  };
+}
+
 export const formatKES = (n: number) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);

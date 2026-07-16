@@ -4,7 +4,7 @@ import { Search, Filter as FilterIcon, X, SearchX, Lightbulb, Sparkles } from "l
 import { Layout } from "@/components/site/Layout";
 import { ProductCard } from "@/components/site/ProductCard";
 import { SectionHeader } from "@/components/site/SectionHeader";
-import { products as seedProducts, type Product } from "@/lib/products";
+import { products as seedProducts, productFromDb, type Product } from "@/lib/products";
 import { supabase } from "@/integrations/supabase/client";
 
 // Helpers below (EmptyState/buildSuggestions) reference this module-level list.
@@ -36,37 +36,11 @@ function Marketplace() {
     const seedBySlug = new Map(seedProducts.map((p) => [p.slug, p]));
     supabase
       .from("products")
-      .select("id, slug, title, category, price_kes, description, cover_url, bedrooms, bathrooms, area_sqft")
+      .select("id, slug, title, category, price_kes, description, cover_url, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes")
       .eq("is_active", true)
       .then(({ data }) => {
         if (!data) return;
-        setDbItems(
-          data.map((r): Product => {
-            const seed = seedBySlug.get(r.slug);
-            const image = r.cover_url || seed?.image || "/placeholder.svg";
-            return {
-              id: r.id,
-              slug: r.slug,
-              title: r.title,
-              type: (r.category as Product["type"]) === "BOQ" ? "BOQ" : "Plans",
-              buildingType: seed?.buildingType || "Residential",
-              sqftBand: seed?.sqftBand || "Under 1,500",
-              price: r.price_kes,
-              image,
-              preview: seed?.preview || image,
-              shortDescription: r.description || seed?.shortDescription || "",
-              longDescription: seed?.longDescription || r.description || "",
-              discipline: seed?.discipline || [],
-              formats: seed?.formats || ["PDF"],
-              inclusions: seed?.inclusions || [],
-              exclusions: seed?.exclusions || [],
-              deliverables: seed?.deliverables || [{ kind: "Architectural", price: r.price_kes }],
-              bedrooms: r.bedrooms ?? undefined,
-              bathrooms: r.bathrooms ?? undefined,
-              areaSqft: r.area_sqft ?? undefined,
-            } as unknown as Product;
-          })
-        );
+        setDbItems(data.map((r) => productFromDb(r, seedBySlug.get(r.slug))));
       });
   }, []);
 

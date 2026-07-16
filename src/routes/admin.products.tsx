@@ -4,7 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Plus, Upload, FileText, Image as ImageIcon, Download } from "lucide-react";
-import { products as seedProducts } from "@/lib/products";
+import {
+  products as seedProducts,
+  slugify,
+} from "@/lib/products";
 import { fileToBase64, uploadAdminFile } from "@/lib/storage.functions";
 
 type ProductRow = {
@@ -94,8 +97,10 @@ function ProductsAdmin() {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
       };
+      const cleanSlug = slugify(editing.slug);
+      if (!cleanSlug) throw new Error("Slug must contain letters or numbers");
       const payload = {
-        slug: editing.slug.trim(),
+        slug: cleanSlug,
         title: editing.title.trim(),
         category: editing.category || "Plans",
         price_kes: Number(editing.price_kes) || 0,
@@ -136,7 +141,7 @@ function ProductsAdmin() {
   const uploadCover = async (file: File) => {
     if (!editing) return;
     try {
-      const path = `covers/${editing.slug || "tmp"}-${Date.now()}-${file.name}`;
+      const path = `covers/${slugify(editing.slug || "tmp") || "tmp"}-${Date.now()}-${file.name}`;
       const res = await uploadFileFn({
         data: {
           bucket: "product-covers",
@@ -156,7 +161,7 @@ function ProductsAdmin() {
   const uploadFile = async (file: File) => {
     if (!editing) return;
     try {
-      const path = `files/${editing.slug || "tmp"}/${Date.now()}-${file.name}`;
+      const path = `files/${slugify(editing.slug || "tmp") || "tmp"}/${Date.now()}-${file.name}`;
       const res = await uploadFileFn({
         data: {
           bucket: "product-files",
