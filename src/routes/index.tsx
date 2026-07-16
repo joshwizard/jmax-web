@@ -30,19 +30,19 @@ const trust = [
 
 const testimonials = [
   {
-    quote: "The plans were buildable on day one. Our fundi understood the drawings without back-and-forth — that saved us weeks.",
-    author: "Wanjiru K.",
+    quote: "The plans were buildable on day one. Our foreman understood the drawings without back-and-forth — that saved us weeks.",
+    author: "Michael - Murang'a.",
     role: "Owner-builder, Nyeri",
   },
   {
     quote: "Their BOQ format is what I wish every estimator used. Clean breakdown, clear exclusions, no surprises mid-tender.",
-    author: "Eng. Mutua",
-    role: "Quantity surveyor",
+    author: "Jack",
+    role: "Contractor, Nairobi",
   },
   {
-    quote: "Jmax delivered on schedule. Site supervision and finishings were genuinely premium for the budget.",
-    author: "D. Kariuki",
-    role: "Maisonette client, Meru",
+    quote: "Jmax delivered on schedule. Their plans were stamped by registered professionals.",
+    author: "Hawo",
+    role: "Maisonette client, Katani, Machakos",
   },
 ];
 
