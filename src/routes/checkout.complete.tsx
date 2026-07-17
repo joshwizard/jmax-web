@@ -4,7 +4,10 @@ import { CheckCircle2, Download, Mail, FolderOpen, Loader2, XCircle } from "luci
 import { Layout } from "@/components/site/Layout";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { verifyPaystack } from "@/lib/payments.functions";
+import { getDownloadUrl } from "@/lib/downloads.functions";
+import { deliverableLabel } from "@/lib/product-files";
 import { useCart } from "@/lib/cart";
 import { usePromo } from "@/lib/usePromo";
 
@@ -34,7 +37,10 @@ function Complete() {
   );
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [verifiedOrderNumber, setVerifiedOrderNumber] = useState<string>("");
+  const [emailSent, setEmailSent] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const verifyFn = useServerFn(verifyPaystack);
+  const downloadFn = useServerFn(getDownloadUrl);
   const { clear: clearCart } = useCart();
   const { clear: clearPromo } = usePromo(0);
 
@@ -56,6 +62,7 @@ function Complete() {
         if (res.ok) {
           setStatus("paid");
           setVerifiedOrderNumber(res.orderNumber ?? "");
+          setEmailSent(Boolean(res.emailSent));
           clearCart();
           clearPromo();
         } else {
@@ -70,6 +77,27 @@ function Complete() {
     })();
     return () => { cancelled = true; };
   }, [reference, trxref, verifyFn, clearCart, clearPromo]);
+
+  const download = async (slug: string, license: string, key: string) => {
+    if (!slug) {
+      toast.error("Open Your library to download");
+      return;
+    }
+    setBusy(key);
+    try {
+      const { url } = await downloadFn({
+        data: {
+          productSlug: slug,
+          license: license as "Architectural" | "Structural" | "BOQ",
+        },
+      });
+      window.open(url, "_blank");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not get download link");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   if (status === "verifying") {
     return (
@@ -99,6 +127,7 @@ function Complete() {
   }
 
   const id = verifiedOrderNumber || orderId || order?.orderId || "JMX-DEMO-0000";
+  const paid = status === "paid" || Boolean(reference || trxref);
 
   return (
     <Layout>
@@ -114,34 +143,48 @@ function Complete() {
                 <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">Thank you{order?.name ? `, ${order.name}` : ""}.</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Your order <span className="font-mono font-semibold text-foreground">{id}</span> is complete.
-                  A receipt and download links have been sent to {order?.email ? <span className="font-semibold text-foreground">{order.email}</span> : "your email"}.
+                  {emailSent ? (
+                    <> Download links for the file(s) you bought were sent to {order?.email ? <span className="font-semibold text-foreground">{order.email}</span> : "your email"}.</>
+                  ) : (
+                    <> Download your purchased file(s) below, or from <Link to="/account/library" className="font-semibold text-foreground underline">Your library</Link>.
+                      {order?.email ? <> A confirmation email will also go to <span className="font-semibold text-foreground">{order.email}</span> when email delivery is enabled.</> : null}
+                    </>
+                  )}
                 </p>
               </div>
             </div>
 
             <div className="mt-8 rounded-xl border border-dashed border-border bg-secondary/40 p-6">
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <Download className="h-4 w-4 text-primary" /> Digital delivery
+                <Download className="h-4 w-4 text-primary" /> Your purchased files
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Your files are ready. Links are valid for 30 days. Re-download any time from your library.
+                Each button downloads only that deliverable. Links also stay in your library.
               </p>
               <div className="mt-4 space-y-2">
-                {(order?.items ?? [{ title: "Your purchased file", license: "Single-use license", qty: 1, slug: "" }]).map((it, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-3 text-sm">
-                    <div>
-                      <p className="font-medium">{it.title}</p>
-                      <p className="text-xs text-muted-foreground">{it.license}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => alert("Download link is a placeholder for the prototype.")}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-2 text-xs font-semibold text-ink-foreground hover:opacity-90"
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download
-                    </button>
-                  </div>
-                ))}
+                {(order?.items ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Open Your library to access downloads for this order.</p>
+                ) : (
+                  order!.items.map((it, i) => {
+                    const key = `${it.slug}-${it.license}-${i}`;
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-3 text-sm">
+                        <div>
+                          <p className="font-medium">{it.title}</p>
+                          <p className="text-xs text-muted-foreground">{deliverableLabel(it.license)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!paid || !it.slug || busy === key}
+                          onClick={() => download(it.slug, it.license, key)}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-2 text-xs font-semibold text-ink-foreground hover:opacity-90 disabled:opacity-50"
+                        >
+                          {busy === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 

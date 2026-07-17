@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight, Bath, BedDouble, Heart, Layers, Ruler } from "lucide-react";
 import { toast } from "sonner";
 import type { Product } from "@/lib/products";
 import { formatKES } from "@/lib/products";
@@ -9,6 +9,7 @@ import { useWishlist } from "@/lib/wishlist";
 export function ProductCard({ p }: { p: Product }) {
   const { has, toggle } = useWishlist();
   const wished = has(p.id);
+  const deliverableLabels = p.deliverables.map((d) => (d.kind === "BOQ" ? "BOQ" : d.kind.slice(0, 4)));
 
   const onWishClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -42,15 +43,37 @@ export function ProductCard({ p }: { p: Product }) {
         </button>
       </div>
       <div className="flex flex-1 flex-col gap-3 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="font-display text-base font-semibold leading-snug text-balance">{p.title}</h3>
-        </div>
+        <h3 className="font-display text-base font-semibold leading-snug text-balance">{p.title}</h3>
         <p className="text-sm text-muted-foreground line-clamp-2">{p.shortDescription}</p>
+
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+          {p.bedrooms != null && (
+            <span className="inline-flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" />{p.bedrooms} bed</span>
+          )}
+          {p.bathrooms != null && (
+            <span className="inline-flex items-center gap-1"><Bath className="h-3.5 w-3.5" />{p.bathrooms} bath</span>
+          )}
+          {p.floors != null && (
+            <span className="inline-flex items-center gap-1"><Layers className="h-3.5 w-3.5" />{p.floors} {p.floors === 1 ? "floor" : "floors"}</span>
+          )}
+          {p.plotSize && (
+            <span className="inline-flex items-center gap-1"><Ruler className="h-3.5 w-3.5" />{p.plotSize}</span>
+          )}
+          {!p.plotSize && p.areaSqft != null && (
+            <span className="inline-flex items-center gap-1"><Ruler className="h-3.5 w-3.5" />{p.areaSqft.toLocaleString()} sq ft</span>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-1.5 text-[11px]">
           <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">{p.buildingType}</span>
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">{p.sqftBand} sq ft</span>
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">{p.formats[0]}</span>
+          {deliverableLabels.map((label) => (
+            <span key={label} className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">{label}</span>
+          ))}
+          {p.formats[0] && (
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">{p.formats[0]}</span>
+          )}
         </div>
+
         <div className="mt-auto flex items-end justify-between pt-2">
           <div>
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">From</p>

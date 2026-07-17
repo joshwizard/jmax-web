@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, X, ShieldCheck, FileDown, Mail, ShoppingCart, Heart } from "lucide-react";
+import { ArrowLeft, Check, X, ShieldCheck, FileDown, Mail, ShoppingCart, Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Layout } from "@/components/site/Layout";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
@@ -11,29 +11,46 @@ import { ProductReviews } from "@/components/site/ProductReviews";
 import {
   getProduct,
   productFromDb,
-  products,
   formatKES,
   type Deliverable,
   type Product,
 } from "@/lib/products";
+import { loadProductMedia } from "@/lib/product-gallery";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { pushRecent } from "@/lib/recentlyViewed";
 
+const PRODUCT_SELECT =
+  "id, slug, title, category, price_kes, description, cover_url, file_path, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes";
+
 async function fetchProduct(slug: string): Promise<Product | null> {
-  const local = getProduct(slug);
-  if (local) return local;
   const { data, error } = await supabase
     .from("products")
-    .select(
-      "id, slug, title, category, price_kes, description, cover_url, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes",
-    )
+    .select(PRODUCT_SELECT)
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
   if (error || !data) return null;
-  return productFromDb(data, getProduct(data.slug));
+  const media = await loadProductMedia(data.slug, data.cover_url);
+  return productFromDb(data, getProduct(data.slug), media);
+}
+
+async function fetchRelated(current: Product): Promise<Product[]> {
+  const { data } = await supabase
+    .from("products")
+    .select(PRODUCT_SELECT)
+    .eq("is_active", true)
+    .eq("category", current.type)
+    .neq("slug", current.slug)
+    .limit(3);
+  if (!data?.length) return [];
+  return Promise.all(
+    data.map(async (r) => {
+      const media = await loadProductMedia(r.slug, r.cover_url);
+      return productFromDb(r, getProduct(r.slug), media);
+    }),
+  );
 }
 
 export const Route = createFileRoute("/marketplace/$slug")({
@@ -95,6 +112,7 @@ export const Route = createFileRoute("/marketplace/$slug")({
 function ProductPage() {
   const { slug } = Route.useParams();
   const [p, setP] = useState<Product | null | undefined>(() => getProduct(slug) ?? undefined);
+  const [activeImg, setActiveImg] = useState(0);
   const ORDER: Deliverable[] = ["Architectural", "Structural", "BOQ"];
   const available = useMemo(
     () => (p ? [...p.deliverables].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)) : []),
@@ -105,6 +123,7 @@ function ProductPage() {
     Structural: false,
     BOQ: false,
   });
+  const [related, setRelated] = useState<Product[]>([]);
   const { add } = useCart();
   const { has: isWished, toggle: toggleWish } = useWishlist();
   const navigate = useNavigate();
@@ -117,19 +136,19 @@ function ProductPage() {
       setPicked(first ? { ...emptyPicked, [first]: true } : emptyPicked);
     };
 
-    const local = getProduct(slug);
-    if (local) {
-      setP(local);
-      pickFirst(local);
-      return;
-    }
-
+    setActiveImg(0);
     setP(undefined);
+    setRelated([]);
     setPicked(emptyPicked);
     fetchProduct(slug).then((product) => {
       if (cancelled) return;
       setP(product);
-      if (product) pickFirst(product);
+      if (product) {
+        pickFirst(product);
+        fetchRelated(product).then((items) => {
+          if (!cancelled) setRelated(items);
+        });
+      }
     });
     return () => {
       cancelled = true;
@@ -140,6 +159,10 @@ function ProductPage() {
     if (p) pushRecent(p.slug);
   }, [p]);
 
+  useEffect(() => {
+    setActiveImg(0);
+  }, [p?.slug]);
+
   if (p === undefined) {
     return (
       <Layout>
@@ -149,9 +172,15 @@ function ProductPage() {
   }
   if (p === null) throw notFound();
 
+  const gallery = (p.images && p.images.length > 0 ? p.images : [p.preview || p.image]).filter(Boolean);
+  const currentSrc = gallery[Math.min(activeImg, gallery.length - 1)] || p.preview || p.image;
   const wished = isWished(p.id);
   const selected = available.filter((d) => picked[d.kind]);
   const total = selected.reduce((s, d) => s + d.price, 0);
+
+  const step = (dir: -1 | 1) => {
+    setActiveImg((i) => (i + dir + gallery.length) % gallery.length);
+  };
 
   const onAdd = (goToCart = false) => {
     if (selected.length === 0) {
@@ -176,7 +205,7 @@ function ProductPage() {
     toast.success(wished ? "Removed from wishlist" : "Saved to wishlist", { description: p.title });
   };
 
-  const related = products.filter((x) => x.id !== p.id && x.type === p.type).slice(0, 3);
+  const sheets = p.sheets || [];
 
   return (
     <Layout>
@@ -189,19 +218,74 @@ function ProductPage() {
 
       <section className="container-page py-10">
         <div className="grid gap-10 lg:grid-cols-2">
-          {/* Image / preview */}
+          {/* Image / preview gallery */}
           <div className="space-y-3">
             <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border bg-muted">
-              <img src={p.preview} alt={p.title} loading="lazy" className="h-full w-full object-cover" />
+              <img
+                key={currentSrc}
+                src={currentSrc}
+                alt={`${p.title} — photo ${activeImg + 1}`}
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
               <div className="absolute left-4 top-4"><TypeBadge type={p.type} /></div>
-              <div className="absolute inset-0 grid place-items-center">
-                <span className="-rotate-12 select-none rounded-md bg-ink/70 px-6 py-2 font-display text-2xl font-bold uppercase tracking-widest text-ink-foreground/90">
-                  Watermarked Preview
+              <div className="pointer-events-none absolute bottom-3 right-3">
+                <span className="rounded bg-ink/55 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink-foreground/90">
+                  Preview
                 </span>
               </div>
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Previous image"
+                    onClick={() => step(-1)}
+                    className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition hover:bg-background"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next image"
+                    onClick={() => step(1)}
+                    className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition hover:bg-background"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 rounded-full bg-ink/60 px-2.5 py-1.5">
+                    {gallery.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        aria-label={`Go to image ${i + 1}`}
+                        onClick={() => setActiveImg(i)}
+                        className={`h-1.5 rounded-full transition ${i === activeImg ? "w-4 bg-primary" : "w-1.5 bg-ink-foreground/50 hover:bg-ink-foreground/80"}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
+            {gallery.length > 1 && (
+              <div className="grid grid-cols-5 gap-2">
+                {gallery.map((src, i) => (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setActiveImg(i)}
+                    aria-label={`Show image ${i + 1}`}
+                    className={`aspect-[4/3] overflow-hidden rounded-md border-2 transition ${
+                      i === activeImg ? "border-primary" : "border-transparent hover:border-border"
+                    }`}
+                  >
+                    <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               Preview shown is watermarked. Purchased deliverables are clean, print-ready files in the listed formats.
+              {gallery.length > 1 ? ` · ${activeImg + 1} / ${gallery.length}` : ""}
             </p>
           </div>
 
@@ -213,13 +297,26 @@ function ProductPage() {
 
             <div className="mt-5 flex flex-wrap gap-1.5 text-xs">
               <Tag>{p.buildingType}</Tag>
-              <Tag>{p.sqftBand} sq ft</Tag>
+              {p.bedrooms != null && <Tag>{p.bedrooms} bed</Tag>}
+              {p.bathrooms != null && <Tag>{p.bathrooms} bath</Tag>}
+              {p.floors != null && <Tag>{p.floors} {p.floors === 1 ? "floor" : "floors"}</Tag>}
+              {p.plotSize && <Tag>{p.plotSize}</Tag>}
+              {p.areaSqft != null && <Tag>{p.areaSqft.toLocaleString()} sq ft</Tag>}
               {p.formats.map((f) => <Tag key={f}>{f}</Tag>)}
             </div>
 
             {/* Deliverables selector */}
             <div className="mt-7 rounded-xl border border-border bg-card p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose what you need</p>
+              {available.length === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Digital files for this product are being prepared. Email{" "}
+                  <a href="mailto:jmaxbuildersltd@gmail.com" className="underline">jmaxbuildersltd@gmail.com</a>{" "}
+                  or book a consult if you need them urgently.
+                </p>
+              ) : (
+                <>
+              <p className="mt-1 text-xs text-muted-foreground">Each option is a separate file. You only receive what you buy.</p>
               <div className="mt-3 grid gap-2">
                 {available.map((d) => {
                   const checked = picked[d.kind];
@@ -239,7 +336,7 @@ function ProductPage() {
                         />
                         <div>
                           <p className="font-semibold">{d.kind === "BOQ" ? "Bill of Quantities (BOQ)" : `${d.kind} drawings`}</p>
-                          <p className="text-xs text-muted-foreground">Single-use license · one project, one site.</p>
+                          <p className="text-xs text-muted-foreground">Separate file · single-use license · one project, one site.</p>
                         </div>
                       </div>
                       <p className="font-display text-lg font-bold whitespace-nowrap">{formatKES(d.price)}</p>
@@ -267,6 +364,8 @@ function ProductPage() {
                   Buy now
                 </button>
               </div>
+                </>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   onClick={onWish}
@@ -283,6 +382,29 @@ function ProductPage() {
             </div>
           </div>
         </div>
+
+        {/* Drawing sheet previews */}
+        {sheets.length > 0 && (
+          <div className="mt-14">
+            <h2 className="font-display text-2xl font-bold">Drawing previews</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sample sheets from the set. Full purchased files are clean and print-ready.
+            </p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sheets.map((sheet) => (
+                <figure key={sheet.src} className="overflow-hidden rounded-xl border border-border bg-card">
+                  <div className="relative aspect-[4/3] bg-muted">
+                    <img src={sheet.src} alt={sheet.label} loading="lazy" className="h-full w-full object-cover" />
+                    <span className="absolute bottom-2 right-2 rounded bg-ink/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-foreground/90">
+                      Preview
+                    </span>
+                  </div>
+                  <figcaption className="border-t border-border px-4 py-2.5 text-sm font-semibold">{sheet.label}</figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Inclusions & exclusions */}
         <div className="mt-14 grid gap-6 md:grid-cols-2">

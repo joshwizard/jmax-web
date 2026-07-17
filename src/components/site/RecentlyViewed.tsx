@@ -1,18 +1,47 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Clock, ArrowRight } from "lucide-react";
-import { products } from "@/lib/products";
+import { productFromDb, type Product } from "@/lib/products";
+import { loadProductMedia } from "@/lib/product-gallery";
 import { getRecent } from "@/lib/recentlyViewed";
+import { supabase } from "@/integrations/supabase/client";
 import { TypeBadge } from "./TypeBadge";
 
 export function RecentlyViewed({ excludeSlug }: { excludeSlug?: string }) {
-  const [slugs, setSlugs] = useState<string[]>([]);
+  const [items, setItems] = useState<Product[]>([]);
 
   useEffect(() => {
-    setSlugs(getRecent().filter((s) => s !== excludeSlug));
+    const slugs = getRecent().filter((s) => s !== excludeSlug).slice(0, 4);
+    if (slugs.length === 0) {
+      setItems([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id, slug, title, category, price_kes, description, cover_url, file_path, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes")
+        .eq("is_active", true)
+        .in("slug", slugs);
+      if (cancelled || !data) return;
+      const bySlug = new Map(data.map((r) => [r.slug, r]));
+      const ordered = (
+        await Promise.all(
+          slugs.map(async (slug) => {
+            const row = bySlug.get(slug);
+            if (!row) return null;
+            const media = await loadProductMedia(row.slug, row.cover_url);
+            return productFromDb(row, undefined, media);
+          }),
+        )
+      ).filter(Boolean) as Product[];
+      if (!cancelled) setItems(ordered);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [excludeSlug]);
 
-  const items = slugs.map((s) => products.find((p) => p.slug === s)).filter(Boolean).slice(0, 4) as typeof products;
   if (items.length === 0) return null;
 
   return (

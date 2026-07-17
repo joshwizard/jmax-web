@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Heart, ShoppingBag, Trash2 } from "lucide-react";
 import { Layout } from "@/components/site/Layout";
 import { AuthGate } from "@/components/site/AuthGate";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { TypeBadge } from "@/components/site/TypeBadge";
 import { useWishlist } from "@/lib/wishlist";
-import { products, formatKES } from "@/lib/products";
+import { formatKES, productFromDb, type Product } from "@/lib/products";
+import { loadProductMedia } from "@/lib/product-gallery";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/account/wishlist")({
   head: () => ({ meta: [{ title: "Wishlist · Jmax Builders" }] }),
@@ -17,7 +20,37 @@ function WishlistPage() {
 }
 function WishlistInner() {
   const { ids, remove, clear } = useWishlist();
-  const items = ids.map((id) => products.find((p) => p.id === id)).filter(Boolean) as typeof products;
+  const [items, setItems] = useState<Product[]>([]);
+
+  useEffect(() => {
+    if (ids.length === 0) {
+      setItems([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id, slug, title, category, price_kes, description, cover_url, file_path, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes")
+        .in("id", ids);
+      if (cancelled || !data) return;
+      const byId = new Map(data.map((r) => [r.id, r]));
+      const ordered = (
+        await Promise.all(
+          ids.map(async (id) => {
+            const row = byId.get(id);
+            if (!row) return null;
+            const media = await loadProductMedia(row.slug, row.cover_url);
+            return productFromDb(row, undefined, media);
+          }),
+        )
+      ).filter(Boolean) as Product[];
+      if (!cancelled) setItems(ordered);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ids]);
 
   return (
     <Layout>
@@ -38,7 +71,7 @@ function WishlistInner() {
           )}
         </div>
 
-        {items.length === 0 ? (
+        {ids.length === 0 ? (
           <div className="mt-10 grid place-items-center rounded-xl border border-dashed border-border bg-card py-16 text-center">
             <span className="grid h-14 w-14 place-items-center rounded-full bg-secondary text-muted-foreground">
               <ShoppingBag className="h-6 w-6" />

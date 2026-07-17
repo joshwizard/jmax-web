@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ArrowRight, ShieldCheck, HardHat, MapPin, Award, Quote, Star } from "lucide-react";
 import { Layout } from "@/components/site/Layout";
 import { ProductCard } from "@/components/site/ProductCard";
 import { CTABanner } from "@/components/site/CTABanner";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { TypeBadge } from "@/components/site/TypeBadge";
-import { products } from "@/lib/products";
+import { products as seedProducts, productFromDb, type Product } from "@/lib/products";
+import { loadProductMedia } from "@/lib/product-gallery";
+import { supabase } from "@/integrations/supabase/client";
 import hero from "@/assets/hero-construction.jpg";
 import project1 from "@/assets/project-1.jpg";
 import project2 from "@/assets/project-2.jpg";
@@ -47,8 +50,32 @@ const testimonials = [
 ];
 
 function Index() {
-  const featured = products.slice(0, 3);
+  const [featured, setFeatured] = useState<Product[]>([]);
   const projectImgs = [project1, project2, project3];
+
+  useEffect(() => {
+    const seedBySlug = new Map(seedProducts.map((p) => [p.slug, p]));
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id, slug, title, category, price_kes, description, cover_url, file_path, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (cancelled || !data) return;
+      const items = await Promise.all(
+        data.map(async (r) => {
+          const media = await loadProductMedia(r.slug, r.cover_url);
+          return productFromDb(r, seedBySlug.get(r.slug), media);
+        }),
+      );
+      if (!cancelled) setFeatured(items);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <Layout>
@@ -122,7 +149,11 @@ function Index() {
           </Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {featured.map((p) => <ProductCard key={p.id} p={p} />)}
+          {featured.length === 0
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="aspect-[4/5] animate-pulse rounded-xl border border-border bg-muted" />
+              ))
+            : featured.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
         <div className="mt-8 flex flex-wrap items-center gap-3 text-sm">
           <TypeBadge type="Plans" />

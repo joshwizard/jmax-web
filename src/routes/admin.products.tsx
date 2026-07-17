@@ -7,8 +7,24 @@ import { Loader2, Plus, Upload, FileText, Image as ImageIcon, Download } from "l
 import {
   products as seedProducts,
   slugify,
+  PRODUCT_GALLERY_MAX,
+  PRODUCT_SHEETS_MAX,
+  SHEET_LABEL_OPTIONS,
+  type Deliverable,
 } from "@/lib/products";
 import { fileToBase64, uploadAdminFile } from "@/lib/storage.functions";
+import {
+  loadProductMedia,
+  saveProductGalleryManifest,
+  uploadProductGalleryImages,
+  uploadProductSheets,
+  type ProductSheet,
+} from "@/lib/product-gallery";
+import {
+  parseDeliverableFiles,
+  serializeDeliverableFiles,
+  type DeliverableFiles,
+} from "@/lib/product-files";
 
 type ProductRow = {
   id: string;
@@ -26,12 +42,13 @@ type ProductRow = {
   bedrooms: number | null;
   bathrooms: number | null;
   area_sqft: number | null;
+  gallery?: string[];
+  sheets?: ProductSheet[];
+  plot_size?: string | null;
+  floors?: number | null;
+  /** Local editing map — serialized into file_path on save. */
+  deliverable_files?: DeliverableFiles;
 };
-
-
-export const Route = createFileRoute("/admin/products")({
-  component: ProductsAdmin,
-});
 
 const empty: Partial<ProductRow> = {
   slug: "",
@@ -40,13 +57,23 @@ const empty: Partial<ProductRow> = {
   price_kes: 0,
   description: "",
   is_active: true,
+  gallery: [],
+  sheets: [],
+  plot_size: "",
+  floors: null,
+  deliverable_files: {},
 };
+
+export const Route = createFileRoute("/admin/products")({
+  component: ProductsAdmin,
+});
 
 function ProductsAdmin() {
   const [rows, setRows] = useState<ProductRow[] | null>(null);
   const [editing, setEditing] = useState<Partial<ProductRow> | null>(null);
   const [busy, setBusy] = useState(false);
   const [importingSlug, setImportingSlug] = useState<string | null>(null);
+  const [sheetLabel, setSheetLabel] = useState<string>(SHEET_LABEL_OPTIONS[0]);
   const uploadFileFn = useServerFn(uploadAdminFile);
 
   const load = async () => {
@@ -79,7 +106,18 @@ function ProductsAdmin() {
       if (error) throw error;
       toast.success(`Imported "${seed.title}"`);
       await load();
-      if (openEditor && data) setEditing(data as ProductRow);
+      if (openEditor && data) {
+        const row = data as ProductRow;
+        const media = await loadProductMedia(row.slug, row.cover_url);
+        setEditing({
+          ...row,
+          gallery: media.images,
+          sheets: media.sheets,
+          plot_size: media.plotSize,
+          floors: media.floors,
+          deliverable_files: parseDeliverableFiles(row.file_path),
+        });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import failed");
     } finally {
@@ -99,6 +137,13 @@ function ProductsAdmin() {
       };
       const cleanSlug = slugify(editing.slug);
       if (!cleanSlug) throw new Error("Slug must contain letters or numbers");
+      const gallery = (editing.gallery || []).slice(0, PRODUCT_GALLERY_MAX);
+      const sheets = (editing.sheets || []).slice(0, PRODUCT_SHEETS_MAX);
+      const coverFromGallery = await saveProductGalleryManifest(uploadFileFn, cleanSlug, gallery, {
+        sheets,
+        plotSize: editing.plot_size || null,
+        floors: editing.floors ?? null,
+      });
       const payload = {
         slug: cleanSlug,
         title: editing.title.trim(),
@@ -108,8 +153,8 @@ function ProductsAdmin() {
         structural_price_kes: toIntOrNull(editing.structural_price_kes),
         boq_price_kes: toIntOrNull(editing.boq_price_kes),
         description: editing.description || null,
-        cover_url: editing.cover_url || null,
-        file_path: editing.file_path || null,
+        cover_url: coverFromGallery || editing.cover_url || null,
+        file_path: serializeDeliverableFiles(editing.deliverable_files || {}) || null,
         is_active: editing.is_active ?? true,
         bedrooms: editing.bedrooms ?? null,
         bathrooms: editing.bathrooms ?? null,
@@ -138,30 +183,82 @@ function ProductsAdmin() {
     load();
   };
 
-  const uploadCover = async (file: File) => {
-    if (!editing) return;
+  const startEditing = async (row: ProductRow) => {
+    const media = await loadProductMedia(row.slug, row.cover_url);
+    setEditing({
+      ...row,
+      gallery: media.images,
+      sheets: media.sheets,
+      plot_size: media.plotSize,
+      floors: media.floors,
+      deliverable_files: parseDeliverableFiles(row.file_path),
+    });
+  };
+
+  const uploadGallery = async (files: FileList | null) => {
+    if (!editing || !files?.length) return;
+    if (!editing.slug?.trim()) {
+      toast.error("Set a slug before uploading images");
+      return;
+    }
     try {
-      const path = `covers/${slugify(editing.slug || "tmp") || "tmp"}-${Date.now()}-${file.name}`;
-      const res = await uploadFileFn({
-        data: {
-          bucket: "product-covers",
-          path,
-          contentType: file.type || "image/jpeg",
-          dataBase64: await fileToBase64(file),
-        },
+      const next = await uploadProductGalleryImages(
+        uploadFileFn,
+        editing.slug,
+        Array.from(files),
+        editing.gallery || [],
+      );
+      setEditing({
+        ...editing,
+        gallery: next,
+        cover_url: next[0] || editing.cover_url || null,
       });
-      if (!res.publicUrl) throw new Error("Upload succeeded without a public URL");
-      setEditing({ ...editing, cover_url: res.publicUrl });
-      toast.success("Cover uploaded — click Save to apply");
+      toast.success("Images added — click Save to apply");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Cover upload failed");
+      toast.error(err instanceof Error ? err.message : "Image upload failed");
     }
   };
 
-  const uploadFile = async (file: File) => {
+  const removeGalleryImage = (url: string) => {
     if (!editing) return;
+    const next = (editing.gallery || []).filter((u) => u !== url);
+    setEditing({ ...editing, gallery: next, cover_url: next[0] || null });
+  };
+
+  const uploadSheets = async (files: FileList | null) => {
+    if (!editing || !files?.length) return;
+    if (!editing.slug?.trim()) {
+      toast.error("Set a slug before uploading sheets");
+      return;
+    }
     try {
-      const path = `files/${slugify(editing.slug || "tmp") || "tmp"}/${Date.now()}-${file.name}`;
+      const next = await uploadProductSheets(
+        uploadFileFn,
+        editing.slug,
+        Array.from(files),
+        editing.sheets || [],
+        sheetLabel,
+      );
+      setEditing({ ...editing, sheets: next });
+      toast.success("Drawing sheet(s) added — click Save to apply");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Sheet upload failed");
+    }
+  };
+
+  const removeSheet = (src: string) => {
+    if (!editing) return;
+    setEditing({ ...editing, sheets: (editing.sheets || []).filter((s) => s.src !== src) });
+  };
+
+  const uploadDeliverableFile = async (kind: Deliverable, file: File) => {
+    if (!editing) return;
+    if (!editing.slug?.trim()) {
+      toast.error("Set a slug before uploading files");
+      return;
+    }
+    try {
+      const path = `files/${slugify(editing.slug) || "tmp"}/${kind.toLowerCase()}-${Date.now()}-${file.name}`;
       const res = await uploadFileFn({
         data: {
           bucket: "product-files",
@@ -170,11 +267,21 @@ function ProductsAdmin() {
           dataBase64: await fileToBase64(file),
         },
       });
-      setEditing({ ...editing, file_path: res.path });
-      toast.success("File uploaded — click Save to apply");
+      setEditing({
+        ...editing,
+        deliverable_files: { ...(editing.deliverable_files || {}), [kind]: res.path },
+      });
+      toast.success(`${kind} file uploaded — click Save to apply`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "File upload failed");
     }
+  };
+
+  const clearDeliverableFile = (kind: Deliverable) => {
+    if (!editing) return;
+    const next = { ...(editing.deliverable_files || {}) };
+    delete next[kind];
+    setEditing({ ...editing, deliverable_files: next });
   };
 
   return (
@@ -215,9 +322,14 @@ function ProductsAdmin() {
                   <td className="p-3 font-mono text-xs">{r.slug}</td>
                   <td className="p-3">{r.category}</td>
                   <td className="p-3 text-right">KES {r.price_kes.toLocaleString()}</td>
-                  <td className="p-3 text-xs">{r.file_path ? "✓" : "—"}</td>
+                  <td className="p-3 text-xs">
+                    {(() => {
+                      const n = Object.keys(parseDeliverableFiles(r.file_path)).length;
+                      return n ? `${n} file${n === 1 ? "" : "s"}` : "—";
+                    })()}
+                  </td>
                   <td className="p-3 text-right">
-                    <button onClick={() => setEditing(r)} className="text-xs font-semibold text-primary hover:underline">Edit</button>
+                    <button onClick={() => startEditing(r)} className="text-xs font-semibold text-primary hover:underline">Edit</button>
                     <button onClick={() => remove(r.id)} className="ml-3 text-xs font-semibold text-destructive hover:underline">Delete</button>
                   </td>
                 </tr>
@@ -328,32 +440,139 @@ function ProductsAdmin() {
                   className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
                 />
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Field label="Bedrooms" type="number" value={String(editing.bedrooms ?? "")} onChange={(v) => setEditing({ ...editing, bedrooms: v ? Number(v) : null })} />
                 <Field label="Bathrooms" type="number" value={String(editing.bathrooms ?? "")} onChange={(v) => setEditing({ ...editing, bathrooms: v ? Number(v) : null })} />
                 <Field label="Area (sqft)" type="number" value={String(editing.area_sqft ?? "")} onChange={(v) => setEditing({ ...editing, area_sqft: v ? Number(v) : null })} />
+                <Field label="Floors" type="number" value={String(editing.floors ?? "")} onChange={(v) => setEditing({ ...editing, floors: v ? Number(v) : null })} />
               </div>
+              <Field
+                label="Plot size"
+                value={editing.plot_size || ""}
+                onChange={(v) => setEditing({ ...editing, plot_size: v })}
+              />
+              <p className="-mt-2 text-xs text-muted-foreground">Example: 50×100 ft</p>
 
               <div className="rounded-md border border-border bg-card p-3">
-                <p className="flex items-center gap-1.5 text-xs font-semibold"><ImageIcon className="h-3.5 w-3.5" /> Cover image (public)</p>
-                {editing.cover_url && <img src={editing.cover_url} alt="" className="mt-2 h-24 w-full rounded object-cover" />}
+                <p className="flex items-center gap-1.5 text-xs font-semibold">
+                  <ImageIcon className="h-3.5 w-3.5" /> Product images ({(editing.gallery || []).length}/{PRODUCT_GALLERY_MAX})
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Up to {PRODUCT_GALLERY_MAX} photos. First image is the marketplace cover; buyers can scroll through the rest.</p>
+                {(editing.gallery || []).length > 0 && (
+                  <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {(editing.gallery || []).map((url, i) => (
+                      <div key={url} className="relative aspect-[4/3] overflow-hidden rounded border border-border">
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                        {i === 0 && (
+                          <span className="absolute left-1 top-1 rounded bg-ink/80 px-1.5 py-0.5 text-[10px] font-semibold text-ink-foreground">Cover</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeGalleryImage(url)}
+                          className="absolute right-1 top-1 rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-semibold text-destructive"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])}
-                  className="mt-2 text-xs"
+                  multiple
+                  disabled={(editing.gallery || []).length >= PRODUCT_GALLERY_MAX}
+                  onChange={(e) => {
+                    void uploadGallery(e.target.files);
+                    e.target.value = "";
+                  }}
+                  className="mt-2 text-xs disabled:opacity-50"
                 />
               </div>
 
               <div className="rounded-md border border-border bg-card p-3">
-                <p className="flex items-center gap-1.5 text-xs font-semibold"><FileText className="h-3.5 w-3.5" /> Deliverable file (private)</p>
-                {editing.file_path && <p className="mt-2 truncate font-mono text-xs text-muted-foreground">{editing.file_path}</p>}
-                <input
-                  type="file"
-                  onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])}
-                  className="mt-2 text-xs"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">Buyers download via signed URL after payment.</p>
+                <p className="flex items-center gap-1.5 text-xs font-semibold">
+                  <FileText className="h-3.5 w-3.5" /> Drawing sheet previews ({(editing.sheets || []).length}/{PRODUCT_SHEETS_MAX})
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Floor plans, elevations, sections — shown watermarked on the product page.</p>
+                {(editing.sheets || []).length > 0 && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {(editing.sheets || []).map((sheet) => (
+                      <div key={sheet.src} className="relative overflow-hidden rounded border border-border">
+                        <img src={sheet.src} alt={sheet.label} className="aspect-[4/3] w-full object-cover" />
+                        <p className="truncate bg-secondary px-2 py-1 text-[10px] font-semibold">{sheet.label}</p>
+                        <button
+                          type="button"
+                          onClick={() => removeSheet(sheet.src)}
+                          className="absolute right-1 top-1 rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-semibold text-destructive"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <select
+                    value={sheetLabel}
+                    onChange={(e) => setSheetLabel(e.target.value)}
+                    className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                  >
+                    {SHEET_LABEL_OPTIONS.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    disabled={(editing.sheets || []).length >= PRODUCT_SHEETS_MAX}
+                    onChange={(e) => {
+                      void uploadSheets(e.target.files);
+                      e.target.value = "";
+                    }}
+                    className="text-xs disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border bg-card p-3 space-y-3">
+                <div>
+                  <p className="flex items-center gap-1.5 text-xs font-semibold"><FileText className="h-3.5 w-3.5" /> Deliverable files (private)</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Upload a separate file for each option. Buyers only receive the file(s) they purchase. Set a price above for each kind you sell.
+                  </p>
+                </div>
+                {(["Architectural", "Structural", "BOQ"] as Deliverable[]).map((kind) => {
+                  const path = editing.deliverable_files?.[kind];
+                  return (
+                    <div key={kind} className="rounded-md border border-border bg-background p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold">{kind === "BOQ" ? "BOQ" : `${kind} drawings`}</p>
+                        {path ? (
+                          <button type="button" onClick={() => clearDeliverableFile(kind)} className="text-[10px] font-semibold text-destructive hover:underline">
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      {path ? (
+                        <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground" title={path}>{path}</p>
+                      ) : (
+                        <p className="mt-1 text-[11px] text-muted-foreground">No file yet — this option stays hidden on the product page.</p>
+                      )}
+                      <input
+                        type="file"
+                        accept=".pdf,.zip,.dwg,.dxf,application/pdf,application/zip"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void uploadDeliverableFile(kind, f);
+                          e.target.value = "";
+                        }}
+                        className="mt-2 text-xs"
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
               <label className="inline-flex items-center gap-2 text-sm">

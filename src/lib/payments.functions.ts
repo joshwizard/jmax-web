@@ -110,7 +110,7 @@ export const verifyPaystack = createServerFn({ method: "POST" })
     if (order.user_id !== userId) throw new Error("Forbidden");
 
     if (order.status === "paid") {
-      return { ok: true, alreadyPaid: true, orderNumber: order.order_number };
+      return { ok: true, alreadyPaid: true, orderNumber: order.order_number, emailSent: false };
     }
 
     if (json.data.status !== "success") {
@@ -127,5 +127,12 @@ export const verifyPaystack = createServerFn({ method: "POST" })
       .eq("id", order.id);
     if (upErr) throw new Error(upErr.message);
 
-    return { ok: true, orderNumber: order.order_number };
+    // Fire-and-forget delivery email with per-deliverable download links
+    const { sendOrderDeliveryEmail } = await import("@/lib/delivery-email");
+    const emailResult = await sendOrderDeliveryEmail(order.id).catch((err) => {
+      console.error("[verifyPaystack] delivery email error", err);
+      return { sent: false, reason: err instanceof Error ? err.message : "email failed" };
+    });
+
+    return { ok: true, orderNumber: order.order_number, emailSent: emailResult.sent };
   });

@@ -5,11 +5,8 @@ import { Layout } from "@/components/site/Layout";
 import { ProductCard } from "@/components/site/ProductCard";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { products as seedProducts, productFromDb, type Product } from "@/lib/products";
+import { loadProductMedia } from "@/lib/product-gallery";
 import { supabase } from "@/integrations/supabase/client";
-
-// Helpers below (EmptyState/buildSuggestions) reference this module-level list.
-// It's the static seed; DB items are merged in at the component level for display.
-const products = seedProducts;
 
 export const Route = createFileRoute("/marketplace/")({
   head: () => ({
@@ -25,32 +22,41 @@ const TYPES: ("All" | Product["type"])[] = ["All", "Plans", "BOQ"];
 const BUILDINGS: ("All" | Product["buildingType"])[] = ["All", "Residential", "Commercial", "Mixed-Use"];
 const BANDS: ("All" | Product["sqftBand"])[] = ["All", "Under 1,500", "1,500 – 3,000", "3,000 – 5,000", "5,000+"];
 
+const PRODUCT_SELECT =
+  "id, slug, title, category, price_kes, description, cover_url, file_path, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes";
+
 function Marketplace() {
   const [type, setType] = useState<(typeof TYPES)[number]>("All");
   const [building, setBuilding] = useState<(typeof BUILDINGS)[number]>("All");
   const [band, setBand] = useState<(typeof BANDS)[number]>("All");
   const [q, setQ] = useState("");
-  const [dbItems, setDbItems] = useState<Product[]>([]);
+  const [catalog, setCatalog] = useState<Product[] | null>(null);
 
   useEffect(() => {
     const seedBySlug = new Map(seedProducts.map((p) => [p.slug, p]));
-    supabase
-      .from("products")
-      .select("id, slug, title, category, price_kes, description, cover_url, bedrooms, bathrooms, area_sqft, architectural_price_kes, structural_price_kes, boq_price_kes")
-      .eq("is_active", true)
-      .then(({ data }) => {
-        if (!data) return;
-        setDbItems(data.map((r) => productFromDb(r, seedBySlug.get(r.slug))));
-      });
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from("products").select(PRODUCT_SELECT).eq("is_active", true);
+      if (cancelled || !data) {
+        if (!cancelled) setCatalog([]);
+        return;
+      }
+      const items = await Promise.all(
+        data.map(async (r) => {
+          const media = await loadProductMedia(r.slug, r.cover_url);
+          return productFromDb(r, seedBySlug.get(r.slug), media);
+        }),
+      );
+      if (!cancelled) setCatalog(items);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const merged = useMemo(() => {
-    const seen = new Set<string>();
-    return [...dbItems, ...products].filter((p) => (seen.has(p.slug) ? false : (seen.add(p.slug), true)));
-  }, [dbItems]);
-
   const filtered = useMemo(() => {
-    return merged.filter((p) => {
+    if (!catalog) return [];
+    return catalog.filter((p) => {
       if (type !== "All" && p.type !== type) return false;
       if (building !== "All" && p.buildingType !== building) return false;
       if (band !== "All" && p.sqftBand !== band) return false;
@@ -60,13 +66,12 @@ function Marketplace() {
       }
       return true;
     });
-  }, [merged, type, building, band, q]);
+  }, [catalog, type, building, band, q]);
 
   const reset = () => { setType("All"); setBuilding("All"); setBand("All"); setQ(""); };
 
   return (
     <Layout>
-      {/* Header */}
       <section className="border-b border-border bg-secondary/40">
         <div className="container-page py-14">
           <SectionHeader
@@ -77,7 +82,6 @@ function Marketplace() {
         </div>
       </section>
 
-      {/* Filters */}
       <section className="container-page py-10">
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           <aside className="space-y-6 rounded-xl border border-border bg-card p-5 lg:sticky lg:top-20 lg:self-start">
@@ -106,12 +110,33 @@ function Marketplace() {
           <div>
             <div className="mb-5 flex items-center justify-between text-sm">
               <p className="text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {merged.length}
+                {catalog === null ? (
+                  "Loading catalog…"
+                ) : (
+                  <>
+                    Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {catalog.length}
+                  </>
+                )}
               </p>
             </div>
 
-            {filtered.length === 0 ? (
+            {catalog === null ? (
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="aspect-[4/5] animate-pulse rounded-xl border border-border bg-muted" />
+                ))}
+              </div>
+            ) : catalog.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
+                <h3 className="font-display text-xl font-bold">Catalog coming soon</h3>
+                <p className="mt-2 text-sm text-muted-foreground">New plans and BOQs are being prepared. Check back shortly, or request a custom set.</p>
+                <Link to="/consult" className="mt-6 inline-block rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                  Book a consultation
+                </Link>
+              </div>
+            ) : filtered.length === 0 ? (
               <EmptyState
+                catalog={catalog}
                 query={q}
                 activeFilters={{ type, building, band }}
                 onApply={(patch) => {
@@ -173,7 +198,7 @@ interface Suggestion {
   count: number;
 }
 
-function buildSuggestions(active: ActiveFilters, q: string): Suggestion[] {
+function buildSuggestions(catalog: Product[], active: ActiveFilters, q: string): Suggestion[] {
   const out: Suggestion[] = [];
   const seen = new Set<string>();
   const push = (s: Suggestion) => {
@@ -183,9 +208,8 @@ function buildSuggestions(active: ActiveFilters, q: string): Suggestion[] {
     out.push(s);
   };
 
-  // Try clearing search query first
   if (q.trim()) {
-    const count = products.filter((p) =>
+    const count = catalog.filter((p) =>
       (active.type === "All" || p.type === active.type) &&
       (active.building === "All" || p.buildingType === active.building) &&
       (active.band === "All" || p.sqftBand === active.band)
@@ -193,7 +217,6 @@ function buildSuggestions(active: ActiveFilters, q: string): Suggestion[] {
     push({ label: `Clear search "${q}"`, patch: { q: "" }, count });
   }
 
-  // Relax each filter individually
   const relax: { key: keyof ActiveFilters; label: string }[] = [
     { key: "band", label: "Any floor area" },
     { key: "building", label: "Any building type" },
@@ -202,7 +225,7 @@ function buildSuggestions(active: ActiveFilters, q: string): Suggestion[] {
   for (const r of relax) {
     if (active[r.key] !== "All") {
       const next = { ...active, [r.key]: "All" } as ActiveFilters;
-      const count = products.filter((p) =>
+      const count = catalog.filter((p) =>
         (next.type === "All" || p.type === next.type) &&
         (next.building === "All" || p.buildingType === next.building) &&
         (next.band === "All" || p.sqftBand === next.band) &&
@@ -212,10 +235,9 @@ function buildSuggestions(active: ActiveFilters, q: string): Suggestion[] {
     }
   }
 
-  // Cross-promote: switch product type
   if (active.type !== "All") {
     const other: Product["type"] = active.type === "Plans" ? "BOQ" : "Plans";
-    const count = products.filter((p) =>
+    const count = catalog.filter((p) =>
       p.type === other &&
       (active.building === "All" || p.buildingType === active.building) &&
       (active.band === "All" || p.sqftBand === active.band)
@@ -227,17 +249,19 @@ function buildSuggestions(active: ActiveFilters, q: string): Suggestion[] {
 }
 
 function EmptyState({
+  catalog,
   query,
   activeFilters,
   onApply,
   onReset,
 }: {
+  catalog: Product[];
   query: string;
   activeFilters: ActiveFilters;
   onApply: (patch: Patch) => void;
   onReset: () => void;
 }) {
-  const suggestions = buildSuggestions(activeFilters, query);
+  const suggestions = buildSuggestions(catalog, activeFilters, query);
   const activeChips: { label: string; patch: Patch }[] = [];
   if (query.trim()) activeChips.push({ label: `Search: "${query}"`, patch: { q: "" } });
   if (activeFilters.type !== "All") activeChips.push({ label: `Type: ${activeFilters.type}`, patch: { type: "All" } });

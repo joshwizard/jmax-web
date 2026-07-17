@@ -7,6 +7,7 @@ import { Layout } from "@/components/site/Layout";
 import { AuthGate } from "@/components/site/AuthGate";
 import { supabase } from "@/integrations/supabase/client";
 import { formatKES } from "@/lib/products";
+import { deliverableLabel } from "@/lib/product-files";
 import { getDownloadUrl } from "@/lib/downloads.functions";
 
 export const Route = createFileRoute("/account/library")({
@@ -40,10 +41,15 @@ function LibraryInner() {
       .then(({ data }) => setOrders((data as OrderRow[] | null) || []));
   }, []);
 
-  const download = async (slug: string) => {
-    setBusy(slug);
+  const download = async (slug: string, license: string, itemId: string) => {
+    setBusy(itemId);
     try {
-      const { url } = await downloadFn({ data: { productSlug: slug } });
+      const { url } = await downloadFn({
+        data: {
+          productSlug: slug,
+          license: license as "Architectural" | "Structural" | "BOQ",
+        },
+      });
       window.open(url, "_blank");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not get download link");
@@ -52,7 +58,6 @@ function LibraryInner() {
     }
   };
 
-
   return (
     <Layout>
       <section className="container-page py-12">
@@ -60,7 +65,7 @@ function LibraryInner() {
           <span className="grid h-10 w-10 place-items-center rounded-md bg-ink text-ink-foreground"><FolderOpen className="h-5 w-5" /></span>
           <div>
             <h1 className="font-display text-3xl font-bold tracking-tight">Your library</h1>
-            <p className="text-sm text-muted-foreground">Re-download files from past purchases.</p>
+            <p className="text-sm text-muted-foreground">Re-download only the deliverables you purchased.</p>
           </div>
         </div>
 
@@ -88,14 +93,14 @@ function LibraryInner() {
                   <div key={it.id} className="flex items-center gap-4 py-3">
                     <div className="flex-1">
                       <Link to="/marketplace/$slug" params={{ slug: it.product_slug }} className="font-semibold hover:text-primary">{it.title}</Link>
-                      <p className="text-xs text-muted-foreground">{it.license} · ×{it.qty} · {formatKES(it.unit_price_kes)}</p>
+                      <p className="text-xs text-muted-foreground">{deliverableLabel(it.license)} · ×{it.qty} · {formatKES(it.unit_price_kes)}</p>
                     </div>
                     <button
-                      onClick={() => download(it.product_slug)}
+                      onClick={() => download(it.product_slug, it.license, it.id)}
                       className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold hover:bg-accent disabled:opacity-50"
-                      disabled={o.status !== "paid" || busy === it.product_slug}
+                      disabled={o.status !== "paid" || busy === it.id}
                     >
-                      {busy === it.product_slug ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download
+                      {busy === it.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download
                     </button>
                   </div>
                 ))}

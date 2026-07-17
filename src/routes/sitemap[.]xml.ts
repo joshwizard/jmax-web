@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { products } from "@/lib/products";
 import { projects } from "@/lib/projects";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const SITE_URL = "https://jmaxbuilders.com";
 
@@ -12,10 +12,14 @@ const STATIC = [
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
-      GET: () => {
+      GET: async () => {
+        const { data: productRows } = await supabaseAdmin
+          .from("products")
+          .select("slug")
+          .eq("is_active", true);
         const urls: string[] = [
           ...STATIC.map((p) => `${SITE_URL}${p}`),
-          ...products.map((p) => `${SITE_URL}/marketplace/${p.slug}`),
+          ...(productRows || []).map((p) => `${SITE_URL}/marketplace/${p.slug}`),
           ...projects.map((p) => `${SITE_URL}/portfolio/${p.id}`),
         ];
         const xml = `<?xml version="1.0" encoding="UTF-8"?>

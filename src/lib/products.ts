@@ -1,5 +1,6 @@
 import planImg from "@/assets/product-plan.jpg";
 import boqImg from "@/assets/product-boq.jpg";
+import { parseDeliverableFiles } from "@/lib/product-files";
 
 export type ProductType = "Plans" | "BOQ";
 export type Deliverable = "Architectural" | "Structural" | "BOQ";
@@ -23,6 +24,15 @@ export interface Product {
   units?: string;
   image: string;
   preview: string;
+  /** Product photos for the detail carousel (max 5). Falls back to `image` when empty. */
+  images?: string[];
+  /** Labeled drawing-sheet previews (floor plans, elevations, etc.). */
+  sheets?: { src: string; label: string }[];
+  bedrooms?: number;
+  bathrooms?: number;
+  areaSqft?: number;
+  plotSize?: string;
+  floors?: number;
 }
 
 export const products: Product[] = [
@@ -228,6 +238,28 @@ export function slugify(input: string): string {
     .slice(0, 80);
 }
 
+export const PRODUCT_GALLERY_MAX = 5;
+export const PRODUCT_SHEETS_MAX = 5;
+
+export const SHEET_LABEL_OPTIONS = [
+  "Ground floor",
+  "First floor",
+  "Elevations",
+  "Section",
+  "Roof plan",
+  "Site plan",
+  "Schedule",
+  "Other",
+] as const;
+
+export function sqftBandFromArea(area: number | null | undefined): Product["sqftBand"] {
+  if (area == null || !Number.isFinite(area) || area <= 0) return "Under 1,500";
+  if (area < 1500) return "Under 1,500";
+  if (area < 3000) return "1,500 – 3,000";
+  if (area < 5000) return "3,000 – 5,000";
+  return "5,000+";
+}
+
 type DbProductRow = {
   id: string;
   slug: string;
@@ -236,48 +268,114 @@ type DbProductRow = {
   price_kes: number;
   description: string | null;
   cover_url: string | null;
+  gallery?: unknown;
   bedrooms: number | null;
   bathrooms: number | null;
   area_sqft: number | null;
   architectural_price_kes?: number | null;
   structural_price_kes?: number | null;
   boq_price_kes?: number | null;
+  file_path?: string | null;
 };
 
+/** Normalize gallery JSON / cover into a unique list of up to 5 image URLs. */
+export function normalizeProductImages(coverUrl: string | null | undefined, gallery: unknown, fallback?: string): string[] {
+  const fromGallery = Array.isArray(gallery)
+    ? gallery.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+    : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const url of [...fromGallery, coverUrl, fallback].filter(Boolean) as string[]) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+    if (out.length >= PRODUCT_GALLERY_MAX) break;
+  }
+  return out;
+}
+
+export function normalizeProductSheets(sheets: unknown): { src: string; label: string }[] {
+  if (!Array.isArray(sheets)) return [];
+  const out: { src: string; label: string }[] = [];
+  for (const item of sheets) {
+    if (!item || typeof item !== "object") continue;
+    const src = typeof (item as { src?: unknown }).src === "string" ? (item as { src: string }).src.trim() : "";
+    if (!src) continue;
+    const labelRaw = (item as { label?: unknown }).label;
+    const label = typeof labelRaw === "string" && labelRaw.trim() ? labelRaw.trim() : "Drawing sheet";
+    out.push({ src, label });
+    if (out.length >= PRODUCT_SHEETS_MAX) break;
+  }
+  return out;
+}
+
+/** Public storage path for a product image gallery manifest (used when DB column is unavailable). */
+export function productGalleryManifestPath(slug: string): string {
+  return `gallery/${slugify(slug) || "tmp"}/manifest.json`;
+}
+
 /** Map a Supabase products row into the marketplace Product shape. */
-export function productFromDb(row: DbProductRow, seed?: Product): Product {
+export function productFromDb(
+  row: DbProductRow,
+  seed?: Product,
+  media?: {
+    images?: string[];
+    sheets?: { src: string; label: string }[];
+    plotSize?: string | null;
+    floors?: number | null;
+  },
+): Product {
   const type: ProductType = row.category === "BOQ" ? "BOQ" : "Plans";
+  const files = parseDeliverableFiles(row.file_path);
   const deliverables: Product["deliverables"] = [];
-  if (row.architectural_price_kes != null) {
+  if (row.architectural_price_kes != null && files.Architectural) {
     deliverables.push({ kind: "Architectural", price: row.architectural_price_kes });
   }
-  if (row.structural_price_kes != null) {
+  if (row.structural_price_kes != null && files.Structural) {
     deliverables.push({ kind: "Structural", price: row.structural_price_kes });
   }
-  if (row.boq_price_kes != null) {
+  if (row.boq_price_kes != null && files.BOQ) {
     deliverables.push({ kind: "BOQ", price: row.boq_price_kes });
   }
+  // Fallback: priced kinds with no file map yet (legacy) — Architectural/BOQ from base price only if a legacy path exists
   if (deliverables.length === 0) {
-    deliverables.push(
-      type === "BOQ"
-        ? { kind: "BOQ", price: row.price_kes }
-        : { kind: "Architectural", price: row.price_kes },
-    );
+    if (files.Architectural && type !== "BOQ") {
+      deliverables.push({ kind: "Architectural", price: row.architectural_price_kes ?? row.price_kes });
+    }
+    if (files.Structural && row.structural_price_kes != null) {
+      deliverables.push({ kind: "Structural", price: row.structural_price_kes });
+    }
+    if (files.BOQ) {
+      deliverables.push({ kind: "BOQ", price: row.boq_price_kes ?? row.price_kes });
+    }
   }
-  const image = row.cover_url || seed?.image || "/placeholder.svg";
+  const images = normalizeProductImages(
+    row.cover_url,
+    media?.images ?? row.gallery,
+    seed?.image,
+  );
+  const image = images[0] || seed?.image || "/placeholder.svg";
+  const sheets = media?.sheets?.length ? media.sheets : seed?.sheets || [];
   return {
     id: row.id,
     slug: row.slug,
     title: row.title,
     type,
     buildingType: seed?.buildingType || "Residential",
-    sqftBand: seed?.sqftBand || "Under 1,500",
+    sqftBand: row.area_sqft != null ? sqftBandFromArea(row.area_sqft) : seed?.sqftBand || "Under 1,500",
     price: row.price_kes,
     image,
     preview: seed?.preview || image,
+    images: images.length ? images : [image],
+    sheets,
+    bedrooms: row.bedrooms ?? seed?.bedrooms,
+    bathrooms: row.bathrooms ?? seed?.bathrooms,
+    areaSqft: row.area_sqft ?? seed?.areaSqft,
+    plotSize: media?.plotSize || seed?.plotSize,
+    floors: media?.floors ?? seed?.floors,
     shortDescription: row.description || seed?.shortDescription || "",
     longDescription: seed?.longDescription || row.description || "",
-    discipline: seed?.discipline || [],
+    discipline: seed?.discipline || deliverables.map((d) => d.kind),
     formats: seed?.formats || ["PDF"],
     inclusions: seed?.inclusions || [],
     exclusions: seed?.exclusions || [],
