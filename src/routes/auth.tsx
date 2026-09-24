@@ -128,6 +128,13 @@ function AuthPage() {
             )}
             <Field label="Email" type="email" icon={<Mail className="h-3.5 w-3.5" />} value={email} onChange={setEmail} required />
             <Field label="Password" type="password" icon={<Lock className="h-3.5 w-3.5" />} value={password} onChange={setPassword} required minLength={8} />
+            {mode === "signin" && (
+              <div className="flex justify-end">
+                <Link to="/auth/forgot" className="text-xs font-semibold text-muted-foreground underline hover:text-foreground">
+                  Forgot password?
+                </Link>
+              </div>
+            )}
             <button
               type="submit"
               disabled={busy}

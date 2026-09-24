@@ -21,7 +21,13 @@ function redirectOAuthCodeToCallback() {
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   if (!code) return;
-  if (url.pathname.startsWith("/auth/callback")) return;
+  // These routes exchange the code themselves.
+  if (
+    url.pathname.startsWith("/auth/callback") ||
+    url.pathname.startsWith("/auth/reset-password")
+  ) {
+    return;
+  }
   const next = new URL("/auth/callback", url.origin);
   url.searchParams.forEach((value, key) => next.searchParams.set(key, value));
   window.location.replace(next.toString());

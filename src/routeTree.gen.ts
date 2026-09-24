@@ -35,6 +35,8 @@ import { Route as LegalRefundsRouteImport } from './routes/legal.refunds'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LegalDisclaimerRouteImport } from './routes/legal.disclaimer'
 import { Route as CheckoutCompleteRouteImport } from './routes/checkout.complete'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminProjectsRouteImport } from './routes/admin.projects'
@@ -174,6 +176,16 @@ const CheckoutCompleteRoute = CheckoutCompleteRouteImport.update({
   path: '/checkout/complete',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthForgotRoute = AuthForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -237,6 +249,8 @@ export interface FileRoutesByFullPath {
   '/admin/projects': typeof AdminProjectsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/legal/disclaimer': typeof LegalDisclaimerRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -271,6 +285,8 @@ export interface FileRoutesByTo {
   '/admin/projects': typeof AdminProjectsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/legal/disclaimer': typeof LegalDisclaimerRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -308,6 +324,8 @@ export interface FileRoutesById {
   '/admin/projects': typeof AdminProjectsRoute
   '/admin/users': typeof AdminUsersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/legal/disclaimer': typeof LegalDisclaimerRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -346,6 +364,8 @@ export interface FileRouteTypes {
     | '/admin/projects'
     | '/admin/users'
     | '/auth/callback'
+    | '/auth/forgot'
+    | '/auth/reset-password'
     | '/checkout/complete'
     | '/legal/disclaimer'
     | '/legal/privacy'
@@ -380,6 +400,8 @@ export interface FileRouteTypes {
     | '/admin/projects'
     | '/admin/users'
     | '/auth/callback'
+    | '/auth/forgot'
+    | '/auth/reset-password'
     | '/checkout/complete'
     | '/legal/disclaimer'
     | '/legal/privacy'
@@ -416,6 +438,8 @@ export interface FileRouteTypes {
     | '/admin/projects'
     | '/admin/users'
     | '/auth/callback'
+    | '/auth/forgot'
+    | '/auth/reset-password'
     | '/checkout/complete'
     | '/legal/disclaimer'
     | '/legal/privacy'
@@ -640,6 +664,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutCompleteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/forgot': {
+      id: '/auth/forgot'
+      path: '/forgot'
+      fullPath: '/auth/forgot'
+      preLoaderRoute: typeof AuthForgotRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -721,10 +759,14 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AuthRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthForgotRoute: typeof AuthForgotRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthForgotRoute: AuthForgotRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

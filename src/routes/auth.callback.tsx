@@ -6,13 +6,20 @@ import { Layout } from "@/components/site/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureOwnerAdmin } from "@/lib/admin.functions";
 
-type Search = { redirect?: string; code?: string; error?: string; error_description?: string };
+type Search = {
+  redirect?: string;
+  code?: string;
+  type?: string;
+  error?: string;
+  error_description?: string;
+};
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({ meta: [{ title: "Signing in · Jmax Builders" }, { name: "robots", content: "noindex" }] }),
   validateSearch: (s: Record<string, unknown>): Search => ({
     redirect: typeof s.redirect === "string" ? s.redirect : undefined,
     code: typeof s.code === "string" ? s.code : undefined,
+    type: typeof s.type === "string" ? s.type : undefined,
     error: typeof s.error === "string" ? s.error : undefined,
     error_description: typeof s.error_description === "string" ? s.error_description : undefined,
   }),
@@ -20,13 +27,18 @@ export const Route = createFileRoute("/auth/callback")({
 });
 
 function AuthCallbackPage() {
-  const { redirect, error, error_description } = Route.useSearch();
+  const { redirect, type, error, error_description } = Route.useSearch();
   const navigate = useNavigate();
   const promoteOwner = useServerFn(ensureOwnerAdmin);
   const [message, setMessage] = useState("Finishing sign-in…");
 
   useEffect(() => {
     let cancelled = false;
+    let recovery = type === "recovery" || redirect === "/auth/reset-password";
+
+    const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") recovery = true;
+    });
 
     async function finish() {
       if (error) {
@@ -51,16 +63,22 @@ function AuthCallbackPage() {
           }
         }
 
-        try {
-          await promoteOwner({});
-        } catch (promoteError) {
-          // Non-fatal for regular users; owner promotion needs service role key.
-          console.warn("[auth] Owner admin promotion skipped:", promoteError);
+        if (!recovery) {
+          try {
+            await promoteOwner({});
+          } catch (promoteError) {
+            // Non-fatal for regular users; owner promotion needs service role key.
+            console.warn("[auth] Owner admin promotion skipped:", promoteError);
+          }
         }
 
         if (cancelled) return;
-        // Drop OAuth params from the URL before navigating.
-        const next = redirect && redirect.startsWith("/") ? redirect : "/account";
+        const next =
+          recovery
+            ? "/auth/reset-password"
+            : redirect && redirect.startsWith("/")
+              ? redirect
+              : "/account";
         navigate({ to: next, replace: true });
       } catch (err) {
         if (cancelled) return;
@@ -72,8 +90,9 @@ function AuthCallbackPage() {
     void finish();
     return () => {
       cancelled = true;
+      authSub.subscription.unsubscribe();
     };
-  }, [error, error_description, navigate, promoteOwner, redirect]);
+  }, [error, error_description, navigate, promoteOwner, redirect, type]);
 
   return (
     <Layout>
