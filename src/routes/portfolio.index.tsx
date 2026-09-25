@@ -103,8 +103,8 @@ function Portfolio() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search e.g. 3 bedroom, church, Meru…"
-            className="w-full rounded-md border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            placeholder="Search e.g. 3 bedroom, church, Nairobi…"
+            className="w-full rounded-md border border-input bg-background py-2.5 pl-9 pr-3 text-base outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </label>
 
@@ -113,7 +113,7 @@ function Portfolio() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
+              className={`rounded-md border px-3 py-2 text-sm font-semibold transition sm:px-4 sm:py-2.5 sm:text-base ${
                 filter === f ? "border-ink bg-ink text-ink-foreground" : "border-border bg-card hover:border-primary"
               }`}
             >
@@ -123,7 +123,7 @@ function Portfolio() {
         </div>
 
         {list.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border bg-secondary/30 p-10 text-center text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border bg-secondary/30 p-10 text-center text-base text-muted-foreground">
             No projects match that filter{query ? ` or “${query.trim()}”` : ""}. Try another type or clear search.
           </p>
         ) : (
@@ -139,19 +139,19 @@ function Portfolio() {
                   <img src={p.cover} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 </div>
                 <div className="flex flex-1 flex-col p-6">
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
                     <span className="font-mono uppercase tracking-wider text-primary">{p.category}</span>
                     <span className="shrink-0">{p.year}</span>
                   </div>
-                  <h3 className="mt-2 font-display text-lg font-bold leading-snug">{p.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{p.summary}</p>
-                  <div className="mt-4 flex flex-wrap gap-1.5 text-[11px]">
+                  <h3 className="mt-2 font-display text-xl font-bold leading-snug">{p.title}</h3>
+                  <p className="mt-2 text-base text-muted-foreground line-clamp-2">{p.summary}</p>
+                  <div className="mt-4 flex flex-wrap gap-1.5 text-xs">
                     {p.buildingType && <Tag>{p.buildingType}</Tag>}
                     <Tag>{p.location}</Tag>
                     <Tag>{p.size}</Tag>
                     <Tag>{p.duration}</Tag>
                   </div>
-                  <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                  <span className="mt-5 inline-flex items-center gap-1 text-base font-semibold text-primary">
                     View case study <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                 </div>
@@ -166,7 +166,7 @@ function Portfolio() {
         title="Want a project like these?"
         subtitle="Tell us about your site and brief. We'll come back with a clear next step."
         primary={{ label: "Request a consultation", to: "/contact" }}
-        secondary={{ label: "Browse marketplace", to: "/marketplace" }}
+        secondary={{ label: "Our services", to: "/about/services" }}
       />
     </Layout>
   );

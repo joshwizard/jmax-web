@@ -32,7 +32,7 @@ const steps = [
 ];
 
 const faqs = [
-  { q: "Where do you work?", a: "We're based in Meru and take projects across Kenya. Travel and lodging are quoted transparently." },
+  { q: "Where do you work?", a: "We're based in Nairobi and take projects across Kenya. Travel and lodging are quoted transparently." },
   { q: "Do your plans replace stamped drawings?", a: "No. Our plan sets are buildable and detailed, but local authority submission usually requires a registered architect/engineer to stamp the drawings. We can coordinate this." },
   { q: "Are your BOQ rates current?", a: "Rates are indicative as of the issue date. Always reconfirm with current quotations before signing a contract sum." },
   { q: "Can you customise a marketplace plan?", a: "Yes — small adjustments are typically a fixed fee. Major scope changes are scoped separately." },
@@ -92,7 +92,7 @@ function Services() {
         title="Got a project to scope?"
         subtitle="Book a paid consultation. Pick a date and time, share what you'd like to discuss, and we'll confirm."
         primary={{ label: "Book a consultation", to: "/consult" }}
-        secondary={{ label: "Browse marketplace", to: "/marketplace" }}
+        secondary={{ label: "View portfolio", to: "/portfolio" }}
       />
     </Layout>
   );

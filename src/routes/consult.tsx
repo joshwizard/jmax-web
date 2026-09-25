@@ -325,7 +325,7 @@ function ConsultPage() {
                   value={form.topic}
                   onChange={(e) => setForm({ ...form, topic: e.target.value })}
                   maxLength={4000}
-                  placeholder="e.g. I'm planning a 3-bedroom bungalow on a 50x100 plot in Meru. I'd like to review options and rough budget."
+                  placeholder="e.g. I'm planning a 3-bedroom bungalow on a 50x100 plot in Nairobi. I'd like to review options and rough budget."
                 />
                 <p className="mt-1 text-xs text-muted-foreground">{form.topic.length}/4000</p>
               </div>

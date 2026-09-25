@@ -1,18 +1,24 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
+import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
+
+type CtaTo = "/marketplace" | "/contact" | "/about/services" | "/consult" | "/portfolio";
 
 export function CTABanner({
   eyebrow = "Ready to build?",
-  title = "Start with a plan you can actually build.",
-  subtitle = "Browse the marketplace or talk to us about a custom design and tender.",
-  primary = { label: "Browse marketplace", to: "/marketplace" as const },
-  secondary = { label: "Request a consultation", to: "/contact" as const },
+  title = "Start with a clear brief and a team that builds.",
+  subtitle = "Talk to us about your site, or browse our portfolio of delivered work.",
+  primary = {
+    label: MARKETPLACE_ENABLED ? "Browse marketplace" : "View portfolio",
+    to: (MARKETPLACE_ENABLED ? "/marketplace" : "/portfolio") as CtaTo,
+  },
+  secondary = { label: "Request a consultation", to: "/contact" as CtaTo },
 }: {
   eyebrow?: string;
   title?: string;
   subtitle?: string;
-  primary?: { label: string; to: "/marketplace" | "/contact" | "/about/services" | "/consult" };
-  secondary?: { label: string; to: "/marketplace" | "/contact" | "/about/services" | "/consult" };
+  primary?: { label: string; to: CtaTo };
+  secondary?: { label: string; to: CtaTo };
 }) {
   return (
     <section className="container-page my-20">

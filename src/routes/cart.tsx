@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { Trash2, ShoppingBag, ArrowRight, Minus, Plus, Tag as TagIcon, X, Check } from "lucide-react";
 import { Layout } from "@/components/site/Layout";
@@ -7,8 +7,12 @@ import { useCart } from "@/lib/cart";
 import { formatKES } from "@/lib/products";
 import { usePromo } from "@/lib/usePromo";
 import { PROMO_CODES } from "@/lib/promo";
+import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 
 export const Route = createFileRoute("/cart")({
+  beforeLoad: () => {
+    if (!MARKETPLACE_ENABLED) throw redirect({ to: "/" });
+  },
   head: () => ({ meta: [{ title: "Cart · Jmax Builders" }, { name: "description", content: "Review your selected plans and BOQs." }] }),
   component: CartPage,
 });

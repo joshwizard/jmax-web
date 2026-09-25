@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Heart, ShoppingBag, Trash2 } from "lucide-react";
 import { Layout } from "@/components/site/Layout";
@@ -8,9 +8,13 @@ import { TypeBadge } from "@/components/site/TypeBadge";
 import { useWishlist } from "@/lib/wishlist";
 import { formatKES, productFromDb, type Product } from "@/lib/products";
 import { loadProductMedia } from "@/lib/product-gallery";
+import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/account/wishlist")({
+  beforeLoad: () => {
+    if (!MARKETPLACE_ENABLED) throw redirect({ to: "/account" });
+  },
   head: () => ({ meta: [{ title: "Wishlist · Jmax Builders" }] }),
   component: WishlistPage,
 });

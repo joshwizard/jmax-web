@@ -26,6 +26,7 @@ import { Route as PortfolioIndexRouteImport } from './routes/portfolio.index'
 import { Route as MarketplaceIndexRouteImport } from './routes/marketplace.index'
 import { Route as LegalIndexRouteImport } from './routes/legal.index'
 import { Route as CheckoutIndexRouteImport } from './routes/checkout.index'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AccountIndexRouteImport } from './routes/account.index'
 import { Route as AboutIndexRouteImport } from './routes/about.index'
@@ -36,6 +37,7 @@ import { Route as LegalRefundsRouteImport } from './routes/legal.refunds'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LegalDisclaimerRouteImport } from './routes/legal.disclaimer'
 import { Route as CheckoutCompleteRouteImport } from './routes/checkout.complete'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -44,6 +46,7 @@ import { Route as AdminProjectsRouteImport } from './routes/admin.projects'
 import { Route as AdminProductsRouteImport } from './routes/admin.products'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminConsultationsRouteImport } from './routes/admin.consultations'
+import { Route as AdminBlogRouteImport } from './routes/admin.blog'
 import { Route as AccountWishlistRouteImport } from './routes/account.wishlist'
 import { Route as AccountLibraryRouteImport } from './routes/account.library'
 import { Route as AboutServicesRouteImport } from './routes/about.services'
@@ -133,6 +136,11 @@ const CheckoutIndexRoute = CheckoutIndexRouteImport.update({
   path: '/checkout/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -183,6 +191,11 @@ const CheckoutCompleteRoute = CheckoutCompleteRouteImport.update({
   path: '/checkout/complete',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -223,6 +236,11 @@ const AdminConsultationsRoute = AdminConsultationsRouteImport.update({
   path: '/consultations',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBlogRoute = AdminBlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AccountWishlistRoute = AccountWishlistRouteImport.update({
   id: '/account/wishlist',
   path: '/account/wishlist',
@@ -256,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/about/services': typeof AboutServicesRoute
   '/account/library': typeof AccountLibraryRoute
   '/account/wishlist': typeof AccountWishlistRoute
+  '/admin/blog': typeof AdminBlogRoute
   '/admin/consultations': typeof AdminConsultationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/products': typeof AdminProductsRoute
@@ -264,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/legal/disclaimer': typeof LegalDisclaimerRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -274,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/about/': typeof AboutIndexRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
@@ -293,6 +314,7 @@ export interface FileRoutesByTo {
   '/about/services': typeof AboutServicesRoute
   '/account/library': typeof AccountLibraryRoute
   '/account/wishlist': typeof AccountWishlistRoute
+  '/admin/blog': typeof AdminBlogRoute
   '/admin/consultations': typeof AdminConsultationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/products': typeof AdminProductsRoute
@@ -301,6 +323,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/legal/disclaimer': typeof LegalDisclaimerRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -311,6 +334,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutIndexRoute
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/blog': typeof BlogIndexRoute
   '/checkout': typeof CheckoutIndexRoute
   '/legal': typeof LegalIndexRoute
   '/marketplace': typeof MarketplaceIndexRoute
@@ -334,6 +358,7 @@ export interface FileRoutesById {
   '/about/services': typeof AboutServicesRoute
   '/account/library': typeof AccountLibraryRoute
   '/account/wishlist': typeof AccountWishlistRoute
+  '/admin/blog': typeof AdminBlogRoute
   '/admin/consultations': typeof AdminConsultationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/products': typeof AdminProductsRoute
@@ -342,6 +367,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/checkout/complete': typeof CheckoutCompleteRoute
   '/legal/disclaimer': typeof LegalDisclaimerRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -352,6 +378,7 @@ export interface FileRoutesById {
   '/about/': typeof AboutIndexRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/legal/': typeof LegalIndexRoute
   '/marketplace/': typeof MarketplaceIndexRoute
@@ -376,6 +403,7 @@ export interface FileRouteTypes {
     | '/about/services'
     | '/account/library'
     | '/account/wishlist'
+    | '/admin/blog'
     | '/admin/consultations'
     | '/admin/orders'
     | '/admin/products'
@@ -384,6 +412,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/forgot'
     | '/auth/reset-password'
+    | '/blog/$slug'
     | '/checkout/complete'
     | '/legal/disclaimer'
     | '/legal/privacy'
@@ -394,6 +423,7 @@ export interface FileRouteTypes {
     | '/about/'
     | '/account/'
     | '/admin/'
+    | '/blog/'
     | '/checkout/'
     | '/legal/'
     | '/marketplace/'
@@ -413,6 +443,7 @@ export interface FileRouteTypes {
     | '/about/services'
     | '/account/library'
     | '/account/wishlist'
+    | '/admin/blog'
     | '/admin/consultations'
     | '/admin/orders'
     | '/admin/products'
@@ -421,6 +452,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/forgot'
     | '/auth/reset-password'
+    | '/blog/$slug'
     | '/checkout/complete'
     | '/legal/disclaimer'
     | '/legal/privacy'
@@ -431,6 +463,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/admin'
+    | '/blog'
     | '/checkout'
     | '/legal'
     | '/marketplace'
@@ -453,6 +486,7 @@ export interface FileRouteTypes {
     | '/about/services'
     | '/account/library'
     | '/account/wishlist'
+    | '/admin/blog'
     | '/admin/consultations'
     | '/admin/orders'
     | '/admin/products'
@@ -461,6 +495,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/forgot'
     | '/auth/reset-password'
+    | '/blog/$slug'
     | '/checkout/complete'
     | '/legal/disclaimer'
     | '/legal/privacy'
@@ -471,6 +506,7 @@ export interface FileRouteTypes {
     | '/about/'
     | '/account/'
     | '/admin/'
+    | '/blog/'
     | '/checkout/'
     | '/legal/'
     | '/marketplace/'
@@ -493,10 +529,12 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AccountLibraryRoute: typeof AccountLibraryRoute
   AccountWishlistRoute: typeof AccountWishlistRoute
+  BlogSlugRoute: typeof BlogSlugRoute
   CheckoutCompleteRoute: typeof CheckoutCompleteRoute
   MarketplaceSlugRoute: typeof MarketplaceSlugRoute
   PortfolioProjectIdRoute: typeof PortfolioProjectIdRoute
   AccountIndexRoute: typeof AccountIndexRoute
+  BlogIndexRoute: typeof BlogIndexRoute
   CheckoutIndexRoute: typeof CheckoutIndexRoute
   MarketplaceIndexRoute: typeof MarketplaceIndexRoute
   PortfolioIndexRoute: typeof PortfolioIndexRoute
@@ -623,6 +661,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -693,6 +738,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutCompleteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/reset-password': {
       id: '/auth/reset-password'
       path: '/reset-password'
@@ -749,6 +801,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConsultationsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/blog': {
+      id: '/admin/blog'
+      path: '/blog'
+      fullPath: '/admin/blog'
+      preLoaderRoute: typeof AdminBlogRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/account/wishlist': {
       id: '/account/wishlist'
       path: '/account/wishlist'
@@ -786,6 +845,7 @@ const AboutRouteChildren: AboutRouteChildren = {
 const AboutRouteWithChildren = AboutRoute._addFileChildren(AboutRouteChildren)
 
 interface AdminRouteChildren {
+  AdminBlogRoute: typeof AdminBlogRoute
   AdminConsultationsRoute: typeof AdminConsultationsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminProductsRoute: typeof AdminProductsRoute
@@ -795,6 +855,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminBlogRoute: AdminBlogRoute,
   AdminConsultationsRoute: AdminConsultationsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminProductsRoute: AdminProductsRoute,
@@ -853,10 +914,12 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AccountLibraryRoute: AccountLibraryRoute,
   AccountWishlistRoute: AccountWishlistRoute,
+  BlogSlugRoute: BlogSlugRoute,
   CheckoutCompleteRoute: CheckoutCompleteRoute,
   MarketplaceSlugRoute: MarketplaceSlugRoute,
   PortfolioProjectIdRoute: PortfolioProjectIdRoute,
   AccountIndexRoute: AccountIndexRoute,
+  BlogIndexRoute: BlogIndexRoute,
   CheckoutIndexRoute: CheckoutIndexRoute,
   MarketplaceIndexRoute: MarketplaceIndexRoute,
   PortfolioIndexRoute: PortfolioIndexRoute,

@@ -281,7 +281,7 @@ function ProjectPage() {
         title="Let's scope your project."
         subtitle="Send us a few details about your site and timeline. We'll respond within one business day."
         primary={{ label: "Request a consultation", to: "/contact" }}
-        secondary={{ label: "Browse marketplace", to: "/marketplace" }}
+        secondary={{ label: "Our services", to: "/about/services" }}
       />
     </Layout>
   );

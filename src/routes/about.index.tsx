@@ -9,7 +9,7 @@ export const Route = createFileRoute("/about/")({
   head: () => ({
     meta: [
       { title: "About — Builders, Designers & Estimators · Jmax Builders" },
-      { name: "description", content: "Jmax Builders Ltd is a Meru-based construction firm building homes and commercial projects across Kenya — and the team behind every plan and BOQ in our marketplace." },
+      { name: "description", content: "Jmax Builders Ltd is a Nairobi-based construction firm building homes and commercial projects across Kenya — and the team behind every plan and BOQ in our marketplace." },
       { property: "og:title", content: "About Jmax Builders Ltd" },
       { property: "og:description", content: "A working builder you can also buy a plan from." },
       { property: "og:image", content: aboutImg },

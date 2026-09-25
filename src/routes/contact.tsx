@@ -10,10 +10,10 @@ import { submitBindingQuoteRequest } from "@/lib/contact-form";
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact — Jmax Builders, Meru, Kenya" },
+      { title: "Contact — Jmax Builders, Nairobi, Kenya" },
       { name: "description", content: "Get in touch with Jmax Builders Ltd. Phone, email, and consultation request form." },
       { property: "og:title", content: "Contact Jmax Builders" },
-      { property: "og:description", content: "Reach Jmax Builders in Meru, Kenya — call, email, or send a project brief." },
+      { property: "og:description", content: "Reach Jmax Builders in Nairobi, Kenya — call, email, or send a project brief. We serve clients nationwide." },
     ],
   }),
   component: Contact,
@@ -69,19 +69,19 @@ function Contact() {
           <div className="space-y-6">
             <ContactCard icon={Phone} label="Phone" value="+254 702 067 939" href="tel:+254702067939" />
             <ContactCard icon={Mail} label="Email" value="jmaxbuildersltd@gmail.com" href="mailto:jmaxbuildersltd@gmail.com" />
-            <ContactCard icon={MapPin} label="Office" value="Meru, Kenya" />
+            <ContactCard icon={MapPin} label="Office" value="Nairobi, Kenya" />
 
             <div className="overflow-hidden rounded-xl border border-border bg-card">
               <div className="aspect-[16/10] w-full bg-muted">
                 <iframe
-                  title="Service area map — Meru, Kenya"
-                  src="https://www.openstreetmap.org/export/embed.html?bbox=37.55%2C-0.10%2C37.75%2C0.10&amp;layer=mapnik&amp;marker=0.0463%2C37.6559"
+                  title="Service area map — Nairobi, Kenya"
+                  src="https://www.openstreetmap.org/export/embed.html?bbox=36.70%2C-1.40%2C37.00%2C-1.15&amp;layer=mapnik&amp;marker=-1.2864%2C36.8172"
                   className="h-full w-full"
                   loading="lazy"
                 />
               </div>
               <div className="p-4 text-xs text-muted-foreground">
-                Service area: Meru and surrounding counties. Nationwide projects on request.
+                Based in Nairobi. We take projects across Kenya — travel and lodging quoted transparently.
               </div>
             </div>
           </div>

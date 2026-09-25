@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, X, ShieldCheck, FileDown, Mail, ShoppingCart, Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import {
   type Product,
 } from "@/lib/products";
 import { loadProductMedia } from "@/lib/product-gallery";
+import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
@@ -54,6 +55,9 @@ async function fetchRelated(current: Product): Promise<Product[]> {
 }
 
 export const Route = createFileRoute("/marketplace/$slug")({
+  beforeLoad: () => {
+    if (!MARKETPLACE_ENABLED) throw redirect({ to: "/" });
+  },
   head: ({ params }) => {
     const p = getProduct(params.slug);
     if (!p) return { meta: [{ title: "Product · Jmax Builders" }] };

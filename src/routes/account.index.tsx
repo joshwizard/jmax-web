@@ -6,6 +6,7 @@ import { Layout } from "@/components/site/Layout";
 import { AuthGate } from "@/components/site/AuthGate";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 
 export const Route = createFileRoute("/account/")({
   head: () => ({ meta: [{ title: "Account · Jmax Builders" }] }),
@@ -30,7 +31,11 @@ function Account() {
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           <Tile to="/account/library" icon={FolderOpen} title="Your library" body="Re-download plans and BOQs from past purchases." />
-          <Tile to="/marketplace" icon={ShoppingBag} title="Browse marketplace" body="Discover new plan sets and BOQs." />
+          {MARKETPLACE_ENABLED ? (
+            <Tile to="/marketplace" icon={ShoppingBag} title="Browse marketplace" body="Discover new plan sets and BOQs." />
+          ) : (
+            <Tile to="/portfolio" icon={ShoppingBag} title="View portfolio" body="See delivered homes, churches, and commercial builds." />
+          )}
           <Tile to="/contact" icon={Mail} title="Contact support" body="We respond within one business day." />
         </div>
 
@@ -168,7 +173,7 @@ function ChangePasswordCard({ email }: { email: string }) {
   );
 }
 
-function Tile({ to, icon: Icon, title, body }: { to: "/account/library" | "/marketplace" | "/contact"; icon: typeof FolderOpen; title: string; body: string }) {
+function Tile({ to, icon: Icon, title, body }: { to: "/account/library" | "/marketplace" | "/portfolio" | "/contact"; icon: typeof FolderOpen; title: string; body: string }) {
   return (
     <Link to={to} className="group rounded-xl border border-border bg-card p-6 transition hover:-translate-y-0.5 hover:border-primary hover:shadow-lg">
       <span className="grid h-11 w-11 place-items-center rounded-md bg-ink text-ink-foreground">

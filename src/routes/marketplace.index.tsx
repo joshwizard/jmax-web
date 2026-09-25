@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Search, Filter as FilterIcon, X, SearchX, Lightbulb, Sparkles } from "lucide-react";
 import { Layout } from "@/components/site/Layout";
@@ -6,9 +6,13 @@ import { ProductCard } from "@/components/site/ProductCard";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { products as seedProducts, productFromDb, type Product } from "@/lib/products";
 import { loadProductMedia } from "@/lib/product-gallery";
+import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/marketplace/")({
+  beforeLoad: () => {
+    if (!MARKETPLACE_ENABLED) throw redirect({ to: "/" });
+  },
   head: () => ({
     meta: [
       { title: "Marketplace — Plans & BOQs · Jmax Builders" },

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Layout } from "@/components/site/Layout";
 import { AuthGate } from "@/components/site/AuthGate";
 import { useIsAdmin } from "@/lib/roles";
-import { ShieldAlert, LayoutDashboard, Package, ShoppingBag, Crown, Loader2, Building2, Users, CalendarClock } from "lucide-react";
+import { ShieldAlert, LayoutDashboard, Package, ShoppingBag, Crown, Loader2, Building2, Users, CalendarClock, Newspaper } from "lucide-react";
 import { claimFirstAdmin } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({
@@ -42,10 +42,11 @@ function AdminLayout() {
     );
   }
 
-  const tabs: Array<{ to: "/admin" | "/admin/products" | "/admin/projects" | "/admin/orders" | "/admin/users" | "/admin/consultations"; label: string; icon: typeof LayoutDashboard; exact?: boolean }> = [
+  const tabs: Array<{ to: "/admin" | "/admin/products" | "/admin/projects" | "/admin/blog" | "/admin/orders" | "/admin/users" | "/admin/consultations"; label: string; icon: typeof LayoutDashboard; exact?: boolean }> = [
     { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
     { to: "/admin/products", label: "Marketplace", icon: Package },
     { to: "/admin/projects", label: "Portfolio", icon: Building2 },
+    { to: "/admin/blog", label: "Blog", icon: Newspaper },
     { to: "/admin/orders", label: "Orders", icon: ShoppingBag },
     { to: "/admin/consultations", label: "Consultations", icon: CalendarClock },
     { to: "/admin/users", label: "Admins", icon: Users },

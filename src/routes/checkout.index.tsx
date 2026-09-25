@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CreditCard, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,10 +9,14 @@ import { useCart } from "@/lib/cart";
 import { formatKES } from "@/lib/products";
 import { usePromo } from "@/lib/usePromo";
 import { useAuth } from "@/lib/auth";
+import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 import { supabase } from "@/integrations/supabase/client";
 import { initPaystack } from "@/lib/payments.functions";
 
 export const Route = createFileRoute("/checkout/")({
+  beforeLoad: () => {
+    if (!MARKETPLACE_ENABLED) throw redirect({ to: "/" });
+  },
   head: () => ({ meta: [{ title: "Checkout · Jmax Builders" }] }),
   component: () => (<AuthGate><Checkout /></AuthGate>),
 });
