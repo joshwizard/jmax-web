@@ -141,17 +141,50 @@ export function formatBlogDate(iso: string) {
   return d.toLocaleDateString("en-KE", { year: "numeric", month: "long", day: "numeric" });
 }
 
-/** Very small markdown-ish renderer for blog body (headings + paragraphs). */
-export function renderBlogBody(body: string) {
+/** Very small markdown-ish renderer for blog body (headings, paragraphs, images). */
+export type BlogBlock =
+  | { type: "h1" | "h2" | "p"; text: string }
+  | { type: "img"; src: string; alt: string };
+
+const IMAGE_RE = /^!\[([^\]]*)\]\(([^)\s]+)\)(?:\s*"([^"]*)")?\s*$/;
+
+export function renderBlogBody(body: string): BlogBlock[] {
+  const result: BlogBlock[] = [];
   const blocks = body.trim().split(/\n{2,}/);
-  return blocks.map((block) => {
+
+  for (const block of blocks) {
     const trimmed = block.trim();
-    if (trimmed.startsWith("## ")) {
-      return { type: "h2" as const, text: trimmed.slice(3).trim() };
+    if (!trimmed) continue;
+
+    const img = trimmed.match(IMAGE_RE);
+    if (img) {
+      result.push({
+        type: "img",
+        alt: img[1].trim() || img[3]?.trim() || "",
+        src: img[2].trim(),
+      });
+      continue;
     }
-    if (trimmed.startsWith("# ")) {
-      return { type: "h1" as const, text: trimmed.slice(2).trim() };
+
+    const lines = trimmed.split("\n");
+    const first = lines[0]?.trim() ?? "";
+
+    if (first.startsWith("## ")) {
+      result.push({ type: "h2", text: first.slice(3).trim() });
+      const rest = lines.slice(1).join("\n").trim();
+      if (rest) result.push({ type: "p", text: rest.replace(/\n/g, " ") });
+      continue;
     }
-    return { type: "p" as const, text: trimmed.replace(/\n/g, " ") };
-  });
+
+    if (first.startsWith("# ")) {
+      result.push({ type: "h1", text: first.slice(2).trim() });
+      const rest = lines.slice(1).join("\n").trim();
+      if (rest) result.push({ type: "p", text: rest.replace(/\n/g, " ") });
+      continue;
+    }
+
+    result.push({ type: "p", text: trimmed.replace(/\n/g, " ") });
+  }
+
+  return result;
 }

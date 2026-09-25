@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Plus, Image as ImageIcon, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -44,6 +44,7 @@ function BlogAdmin() {
   const [importingSlug, setImportingSlug] = useState<string | null>(null);
   const [dbReady, setDbReady] = useState(true);
   const uploadFileFn = useServerFn(uploadAdminFile);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const seedOnly = useMemo(() => {
     const dbSlugs = new Set((rows || []).map((r) => r.slug));
@@ -176,6 +177,51 @@ function BlogAdmin() {
       toast.success("Cover uploaded — click Save to apply");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Cover upload failed");
+    }
+  };
+
+  const insertAtCursor = (snippet: string) => {
+    if (!editing) return;
+    const el = bodyRef.current;
+    const body = editing.body || "";
+    if (!el) {
+      setEditing({ ...editing, body: `${body.trimEnd()}\n\n${snippet}\n\n` });
+      return;
+    }
+    const start = el.selectionStart ?? body.length;
+    const end = el.selectionEnd ?? body.length;
+    const before = body.slice(0, start);
+    const after = body.slice(end);
+    const needsLead = before.length > 0 && !before.endsWith("\n\n");
+    const needsTrail = after.length > 0 && !after.startsWith("\n\n");
+    const block = `${needsLead ? "\n\n" : ""}${snippet}${needsTrail ? "\n\n" : ""}`;
+    const next = `${before}${block}${after}`;
+    setEditing({ ...editing, body: next });
+    requestAnimationFrame(() => {
+      const pos = before.length + block.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const uploadInlineImage = async (file: File) => {
+    if (!editing) return;
+    try {
+      const path = `blog/inline/${editing.slug || "tmp"}-${Date.now()}-${file.name}`;
+      const res = await uploadFileFn({
+        data: {
+          bucket: "product-covers",
+          path,
+          contentType: file.type || "image/jpeg",
+          dataBase64: await fileToBase64(file),
+        },
+      });
+      if (!res.publicUrl) throw new Error("Upload did not return a public URL");
+      const alt = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
+      insertAtCursor(`![${alt}](${res.publicUrl})`);
+      toast.success("Image inserted into body — click Save to publish");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Image upload failed");
     }
   };
 
@@ -346,14 +392,39 @@ function BlogAdmin() {
               </label>
               <label className="text-sm">
                 <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Body (use ## for headings, blank line between paragraphs)
+                  Body
                 </span>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Use <code className="font-mono">## Heading</code> for sections. Separate paragraphs with a blank line.
+                  Insert mid-article images with the button below (or paste{" "}
+                  <code className="font-mono">![caption](https://…)</code>).
+                </p>
                 <textarea
+                  ref={bodyRef}
                   value={editing.body || ""}
                   onChange={(e) => setEditing({ ...editing, body: e.target.value })}
                   rows={12}
                   className="w-full rounded-md border border-input bg-background px-3 py-2.5 font-mono text-sm"
                 />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent">
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    Insert image in body
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (f) void uploadInlineImage(f);
+                      }}
+                    />
+                  </label>
+                  <span className="text-[11px] text-muted-foreground">
+                    Place the cursor where the image should appear, then upload.
+                  </span>
+                </div>
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-sm">

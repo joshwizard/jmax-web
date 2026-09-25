@@ -118,6 +118,18 @@
     letter-spacing: -0.02em;
     font-weight: 700;
   }
+  .prose-blog h1,
+  .prose-blog h2,
+  .prose-blog h3,
+  .prose-blog h4 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .prose-blog p {
+    font-family: var(--font-sans);
+    font-weight: 400;
+  }
 }
 
 @layer utilities {

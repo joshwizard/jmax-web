@@ -98,7 +98,7 @@ function BlogIndex() {
                 key={c}
                 type="button"
                 onClick={() => setCategory(c)}
-                className={`rounded-md border px-3 py-2 text-base font-semibold transition ${
+                className={`rounded-md border px-3 py-2 text-base font-normal transition ${
                   category === c
                     ? "border-ink bg-ink text-ink-foreground"
                     : "border-border bg-card hover:border-primary"
@@ -136,9 +136,9 @@ function BlogIndex() {
                     <span className="font-mono uppercase tracking-wider text-primary">{post.category}</span>
                     <time dateTime={post.publishedAt}>{formatBlogDate(post.publishedAt)}</time>
                   </div>
-                  <h2 className="mt-2 font-display text-xl font-bold leading-snug md:text-2xl">{post.title}</h2>
-                  <p className="mt-2 flex-1 text-base text-muted-foreground line-clamp-3">{post.excerpt}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-base font-semibold text-primary">
+                  <h2 className="mt-2 font-sans text-xl font-bold leading-snug md:text-2xl">{post.title}</h2>
+                  <p className="mt-2 flex-1 text-base font-normal text-muted-foreground line-clamp-3">{post.excerpt}</p>
+                  <span className="mt-4 inline-flex items-center gap-1 text-base font-normal text-primary">
                     Read article <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>
                 </div>
