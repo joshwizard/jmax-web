@@ -3,26 +3,25 @@ import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/site/Layout";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { CTABanner } from "@/components/site/CTABanner";
-import { ArrowRight } from "lucide-react";
-import { projects as seedProjects, type Project, type ProjectCategory } from "@/lib/projects";
+import { ArrowRight, Search } from "lucide-react";
+import { projects as seedProjects, PROJECT_CATEGORIES, type Project, type ProjectCategory } from "@/lib/projects";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/portfolio/")({
   head: () => ({
     meta: [
       { title: "Portfolio — Selected Projects · Jmax Builders" },
-      { name: "description", content: "A selection of residential and commercial projects delivered by Jmax Builders." },
+      { name: "description", content: "Browse Jmax Builders projects by type — homes, churches, gates, commercial builds and more." },
       { property: "og:title", content: "Portfolio — Selected Projects · Jmax Builders" },
-      { property: "og:description", content: "Residential and commercial projects, briefs, scope and outcomes." },
+      { property: "og:description", content: "Filter by project type to find the exact case study you need." },
     ],
   }),
   component: Portfolio,
 });
 
-const filters = ["All", "Residential", "Commercial"] as const;
-
 function Portfolio() {
-  const [filter, setFilter] = useState<(typeof filters)[number]>("All");
+  const [filter, setFilter] = useState<string>("All");
+  const [query, setQuery] = useState("");
   const [dbItems, setDbItems] = useState<Project[]>([]);
 
   useEffect(() => {
@@ -66,7 +65,24 @@ function Portfolio() {
     const seen = new Set<string>();
     return [...dbItems, ...seedProjects].filter((p) => (seen.has(p.slug) ? false : (seen.add(p.slug), true)));
   }, [dbItems]);
-  const list = filter === "All" ? all : all.filter((p) => p.category === (filter as ProjectCategory));
+
+  const filters = useMemo(() => {
+    const present = new Set(all.map((p) => p.category).filter(Boolean));
+    const extras = [...present].filter((c) => !(PROJECT_CATEGORIES as readonly string[]).includes(c));
+    return ["All", ...PROJECT_CATEGORIES, ...extras.sort()];
+  }, [all]);
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return all.filter((p) => {
+      if (filter !== "All" && p.category !== filter) return false;
+      if (!q) return true;
+      const haystack = [p.title, p.category, p.location, p.buildingType, p.size, p.summary, p.year]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [all, filter, query]);
 
   return (
     <Layout>
@@ -75,18 +91,29 @@ function Portfolio() {
           <SectionHeader
             eyebrow="Portfolio"
             title="Selected projects"
-            description="A snapshot of work delivered across residential and commercial sectors. Click any project for the full case study."
+            description="Filter by project type — bedrooms, church, gate canopy, commercial and more — or search to find the exact case study."
           />
         </div>
       </section>
 
       <section className="container-page py-12">
+        <label className="relative mb-6 block max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search e.g. 3 bedroom, church, Meru…"
+            className="w-full rounded-md border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+        </label>
+
         <div className="mb-8 flex flex-wrap gap-2">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-md border px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
                 filter === f ? "border-ink bg-ink text-ink-foreground" : "border-border bg-card hover:border-primary"
               }`}
             >
@@ -95,36 +122,43 @@ function Portfolio() {
           ))}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {list.map((p) => (
-            <Link
-              key={p.id}
-              to="/portfolio/$projectId"
-              params={{ projectId: p.slug }}
-              className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
-            >
-              <div className="aspect-[4/3] overflow-hidden bg-muted">
-                <img src={p.cover} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              </div>
-              <div className="flex flex-1 flex-col p-6">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-mono uppercase tracking-wider text-primary">{p.category}</span>
-                  <span>{p.year}</span>
+        {list.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border bg-secondary/30 p-10 text-center text-sm text-muted-foreground">
+            No projects match that filter{query ? ` or “${query.trim()}”` : ""}. Try another type or clear search.
+          </p>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {list.map((p) => (
+              <Link
+                key={p.id}
+                to="/portfolio/$projectId"
+                params={{ projectId: p.slug }}
+                className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+              >
+                <div className="aspect-[4/3] overflow-hidden bg-muted">
+                  <img src={p.cover} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 </div>
-                <h3 className="mt-2 font-display text-lg font-bold leading-snug">{p.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{p.summary}</p>
-                <div className="mt-4 flex flex-wrap gap-1.5 text-[11px]">
-                  <Tag>{p.location}</Tag>
-                  <Tag>{p.size}</Tag>
-                  <Tag>{p.duration}</Tag>
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="font-mono uppercase tracking-wider text-primary">{p.category}</span>
+                    <span className="shrink-0">{p.year}</span>
+                  </div>
+                  <h3 className="mt-2 font-display text-lg font-bold leading-snug">{p.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{p.summary}</p>
+                  <div className="mt-4 flex flex-wrap gap-1.5 text-[11px]">
+                    {p.buildingType && <Tag>{p.buildingType}</Tag>}
+                    <Tag>{p.location}</Tag>
+                    <Tag>{p.size}</Tag>
+                    <Tag>{p.duration}</Tag>
+                  </div>
+                  <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                    View case study <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
                 </div>
-                <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                  View case study <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <CTABanner

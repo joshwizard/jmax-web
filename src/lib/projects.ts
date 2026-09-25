@@ -2,7 +2,30 @@ import project1 from "@/assets/project-1.jpg";
 import project2 from "@/assets/project-2.jpg";
 import project3 from "@/assets/project-3.jpg";
 
-export type ProjectCategory = "Residential" | "Commercial";
+/** Categories admins pick when registering a project — also used as portfolio filters. */
+export const PROJECT_CATEGORIES = [
+  "Residential",
+  "Commercial",
+  "2 Bedroom",
+  "3 Bedroom",
+  "4 Bedroom",
+  "4 Bedroom Mansion",
+  "Maisonette",
+  "Bungalow",
+  "Apartment Block",
+  "Church",
+  "School",
+  "Gate / Canopy",
+  "Boundary Wall",
+  "Renovation",
+  "Extension",
+  "Retail / Shop",
+  "Office",
+  "Warehouse",
+  "Mixed Use",
+] as const;
+
+export type ProjectCategory = (typeof PROJECT_CATEGORIES)[number] | string;
 
 export interface ProjectStat {
   label: string;

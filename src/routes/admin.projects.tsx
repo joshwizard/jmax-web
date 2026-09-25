@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Plus, Upload, Image as ImageIcon, Download } from "lucide-react";
-import { projects as seedProjects } from "@/lib/projects";
+import { projects as seedProjects, PROJECT_CATEGORIES } from "@/lib/projects";
 import { fileToBase64, uploadAdminFile } from "@/lib/storage.functions";
 
 type ProjectRow = {
@@ -307,8 +307,12 @@ function ProjectsAdmin() {
                     onChange={(e) => setEditing({ ...editing, category: e.target.value })}
                     className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
                   >
-                    <option>Residential</option>
-                    <option>Commercial</option>
+                    {PROJECT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                    {editing.category && !(PROJECT_CATEGORIES as readonly string[]).includes(editing.category) && (
+                      <option value={editing.category}>{editing.category}</option>
+                    )}
                   </select>
                 </label>
                 <Field label="Year" value={editing.year || ""} onChange={(v) => setEditing({ ...editing, year: v })} />

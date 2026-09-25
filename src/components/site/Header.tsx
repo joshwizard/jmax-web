@@ -8,9 +8,8 @@ import { useIsAdmin } from "@/lib/roles";
 import { toast } from "sonner";
 
 const nav = [
-  { to: "/marketplace", label: "Marketplace" },
-  { to: "/services", label: "Services" },
   { to: "/portfolio", label: "Portfolio" },
+  { to: "/marketplace", label: "Marketplace" },
   { to: "/consult", label: "Book" },
   { to: "/about", label: "About" },
   { to: "/faq", label: "FAQ" },

@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const SITE_URL = "https://jmaxbuilders.com";
 
 const STATIC = [
-  "/", "/about", "/services", "/portfolio", "/marketplace", "/calculator",
+  "/", "/about", "/about/services", "/portfolio", "/marketplace", "/calculator",
   "/faq", "/contact", "/legal/terms", "/legal/privacy", "/legal/disclaimer", "/legal/refunds",
 ];
 

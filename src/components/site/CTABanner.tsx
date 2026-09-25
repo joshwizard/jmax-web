@@ -11,8 +11,8 @@ export function CTABanner({
   eyebrow?: string;
   title?: string;
   subtitle?: string;
-  primary?: { label: string; to: "/marketplace" | "/contact" | "/services" | "/consult" };
-  secondary?: { label: string; to: "/marketplace" | "/contact" | "/services" | "/consult" };
+  primary?: { label: string; to: "/marketplace" | "/contact" | "/about/services" | "/consult" };
+  secondary?: { label: string; to: "/marketplace" | "/contact" | "/about/services" | "/consult" };
 }) {
   return (
     <section className="container-page my-20">

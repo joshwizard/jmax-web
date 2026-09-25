@@ -28,6 +28,7 @@ import { Route as LegalIndexRouteImport } from './routes/legal.index'
 import { Route as CheckoutIndexRouteImport } from './routes/checkout.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AccountIndexRouteImport } from './routes/account.index'
+import { Route as AboutIndexRouteImport } from './routes/about.index'
 import { Route as PortfolioProjectIdRouteImport } from './routes/portfolio.$projectId'
 import { Route as MarketplaceSlugRouteImport } from './routes/marketplace.$slug'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
@@ -45,6 +46,7 @@ import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminConsultationsRouteImport } from './routes/admin.consultations'
 import { Route as AccountWishlistRouteImport } from './routes/account.wishlist'
 import { Route as AccountLibraryRouteImport } from './routes/account.library'
+import { Route as AboutServicesRouteImport } from './routes/about.services'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -141,6 +143,11 @@ const AccountIndexRoute = AccountIndexRouteImport.update({
   path: '/account/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutIndexRoute = AboutIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AboutRoute,
+} as any)
 const PortfolioProjectIdRoute = PortfolioProjectIdRouteImport.update({
   id: '/portfolio/$projectId',
   path: '/portfolio/$projectId',
@@ -226,10 +233,15 @@ const AccountLibraryRoute = AccountLibraryRouteImport.update({
   path: '/account/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutServicesRoute = AboutServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => AboutRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/about': typeof AboutRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/calculator': typeof CalculatorRoute
@@ -241,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/robots.txt': typeof RobotsDottxtRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/about/services': typeof AboutServicesRoute
   '/account/library': typeof AccountLibraryRoute
   '/account/wishlist': typeof AccountWishlistRoute
   '/admin/consultations': typeof AdminConsultationsRoute
@@ -258,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/legal/terms': typeof LegalTermsRoute
   '/marketplace/$slug': typeof MarketplaceSlugRoute
   '/portfolio/$projectId': typeof PortfolioProjectIdRoute
+  '/about/': typeof AboutIndexRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
@@ -267,7 +281,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/calculator': typeof CalculatorRoute
   '/cart': typeof CartRoute
@@ -277,6 +290,7 @@ export interface FileRoutesByTo {
   '/robots.txt': typeof RobotsDottxtRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/about/services': typeof AboutServicesRoute
   '/account/library': typeof AccountLibraryRoute
   '/account/wishlist': typeof AccountWishlistRoute
   '/admin/consultations': typeof AdminConsultationsRoute
@@ -294,6 +308,7 @@ export interface FileRoutesByTo {
   '/legal/terms': typeof LegalTermsRoute
   '/marketplace/$slug': typeof MarketplaceSlugRoute
   '/portfolio/$projectId': typeof PortfolioProjectIdRoute
+  '/about': typeof AboutIndexRoute
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
   '/checkout': typeof CheckoutIndexRoute
@@ -304,7 +319,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/about': typeof AboutRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/calculator': typeof CalculatorRoute
@@ -316,6 +331,7 @@ export interface FileRoutesById {
   '/robots.txt': typeof RobotsDottxtRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/about/services': typeof AboutServicesRoute
   '/account/library': typeof AccountLibraryRoute
   '/account/wishlist': typeof AccountWishlistRoute
   '/admin/consultations': typeof AdminConsultationsRoute
@@ -333,6 +349,7 @@ export interface FileRoutesById {
   '/legal/terms': typeof LegalTermsRoute
   '/marketplace/$slug': typeof MarketplaceSlugRoute
   '/portfolio/$projectId': typeof PortfolioProjectIdRoute
+  '/about/': typeof AboutIndexRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
@@ -356,6 +373,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/services'
     | '/sitemap.xml'
+    | '/about/services'
     | '/account/library'
     | '/account/wishlist'
     | '/admin/consultations'
@@ -373,6 +391,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/marketplace/$slug'
     | '/portfolio/$projectId'
+    | '/about/'
     | '/account/'
     | '/admin/'
     | '/checkout/'
@@ -382,7 +401,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/about'
     | '/auth'
     | '/calculator'
     | '/cart'
@@ -392,6 +410,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/services'
     | '/sitemap.xml'
+    | '/about/services'
     | '/account/library'
     | '/account/wishlist'
     | '/admin/consultations'
@@ -409,6 +428,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/marketplace/$slug'
     | '/portfolio/$projectId'
+    | '/about'
     | '/account'
     | '/admin'
     | '/checkout'
@@ -430,6 +450,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/services'
     | '/sitemap.xml'
+    | '/about/services'
     | '/account/library'
     | '/account/wishlist'
     | '/admin/consultations'
@@ -447,6 +468,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/marketplace/$slug'
     | '/portfolio/$projectId'
+    | '/about/'
     | '/account/'
     | '/admin/'
     | '/checkout/'
@@ -457,7 +479,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
+  AboutRoute: typeof AboutRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   CalculatorRoute: typeof CalculatorRoute
@@ -615,6 +637,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about/': {
+      id: '/about/'
+      path: '/'
+      fullPath: '/about/'
+      preLoaderRoute: typeof AboutIndexRouteImport
+      parentRoute: typeof AboutRoute
+    }
     '/portfolio/$projectId': {
       id: '/portfolio/$projectId'
       path: '/portfolio/$projectId'
@@ -734,8 +763,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountLibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about/services': {
+      id: '/about/services'
+      path: '/services'
+      fullPath: '/about/services'
+      preLoaderRoute: typeof AboutServicesRouteImport
+      parentRoute: typeof AboutRoute
+    }
   }
 }
+
+interface AboutRouteChildren {
+  AboutServicesRoute: typeof AboutServicesRoute
+  AboutIndexRoute: typeof AboutIndexRoute
+}
+
+const AboutRouteChildren: AboutRouteChildren = {
+  AboutServicesRoute: AboutServicesRoute,
+  AboutIndexRoute: AboutIndexRoute,
+}
+
+const AboutRouteWithChildren = AboutRoute._addFileChildren(AboutRouteChildren)
 
 interface AdminRouteChildren {
   AdminConsultationsRoute: typeof AdminConsultationsRoute
@@ -791,7 +839,7 @@ const LegalRouteWithChildren = LegalRoute._addFileChildren(LegalRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
+  AboutRoute: AboutRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   CalculatorRoute: CalculatorRoute,
