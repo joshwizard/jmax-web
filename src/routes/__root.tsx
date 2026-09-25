@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import appCss from "../styles.css?url";
 import { AppProviders } from "@/components/AppProviders";
 import { Layout } from "@/components/site/Layout";
+import { GA_MEASUREMENT_ID, trackPageview } from "@/lib/analytics";
 
 function NotFoundComponent() {
   return (
@@ -63,6 +64,18 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+const gaScripts = GA_MEASUREMENT_ID
+  ? [
+      {
+        async: true,
+        src: `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`,
+      },
+      {
+        children: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_MEASUREMENT_ID}',{send_page_view:false});`,
+      },
+    ]
+  : [];
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -96,6 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           areaServed: "KE",
         }),
       },
+      ...gaScripts,
     ],
   }),
   shellComponent: RootShell,
@@ -123,7 +137,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    trackPageview(`${pathname}${window.location.search || ""}`);
   }, [pathname]);
   return null;
 }
