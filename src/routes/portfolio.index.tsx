@@ -6,6 +6,7 @@ import { CTABanner } from "@/components/site/CTABanner";
 import { ArrowRight, Search } from "lucide-react";
 import { PROJECT_CATEGORIES, type Project } from "@/lib/projects";
 import { loadPortfolio } from "@/lib/portfolio-source";
+import { LikeButton } from "@/components/site/LikeButton";
 
 export const Route = createFileRoute("/portfolio/")({
   head: () => ({
@@ -103,33 +104,35 @@ function Portfolio() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {list.map((p) => (
-              <Link
-                key={p.id}
-                to="/portfolio/$projectId"
-                params={{ projectId: p.slug }}
-                className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
-              >
-                <div className="aspect-[4/3] overflow-hidden bg-muted">
-                  <img src={p.cover} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                </div>
-                <div className="flex flex-1 flex-col p-6">
-                  <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                    <span className="font-mono uppercase tracking-wider text-primary">{p.category}</span>
-                    <span className="shrink-0">{p.year}</span>
+              <div key={p.id} className="relative">
+                <LikeButton slug={p.slug} title={p.title} className="absolute right-3 top-3 z-10" />
+                <Link
+                  to="/portfolio/$projectId"
+                  params={{ projectId: p.slug }}
+                  className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+                >
+                  <div className="aspect-[4/3] overflow-hidden bg-muted">
+                    <img src={p.cover} alt={p.title} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   </div>
-                  <h3 className="mt-2 font-display text-xl font-bold leading-snug">{p.title}</h3>
-                  <p className="mt-2 text-base text-muted-foreground line-clamp-2">{p.summary}</p>
-                  <div className="mt-4 flex flex-wrap gap-1.5 text-xs">
-                    {p.buildingType && <Tag>{p.buildingType}</Tag>}
-                    <Tag>{p.location}</Tag>
-                    <Tag>{p.size}</Tag>
-                    <Tag>{p.duration}</Tag>
+                  <div className="flex flex-1 flex-col p-6">
+                    <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                      <span className="font-mono uppercase tracking-wider text-primary">{p.category}</span>
+                      <span className="shrink-0">{p.year}</span>
+                    </div>
+                    <h3 className="mt-2 font-display text-xl font-bold leading-snug">{p.title}</h3>
+                    <p className="mt-2 text-base text-muted-foreground line-clamp-2">{p.summary}</p>
+                    <div className="mt-4 flex flex-wrap gap-1.5 text-xs">
+                      {p.buildingType && <Tag>{p.buildingType}</Tag>}
+                      <Tag>{p.location}</Tag>
+                      <Tag>{p.size}</Tag>
+                      <Tag>{p.duration}</Tag>
+                    </div>
+                    <span className="mt-5 inline-flex items-center gap-1 text-base font-semibold text-primary">
+                      View case study <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
                   </div>
-                  <span className="mt-5 inline-flex items-center gap-1 text-base font-semibold text-primary">
-                    View case study <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </span>
-                </div>
-              </Link>
+                </Link>
+              </div>
             ))}
           </div>
         )}

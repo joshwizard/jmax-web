@@ -5,6 +5,7 @@ import { Layout } from "@/components/site/Layout";
 import { CTABanner } from "@/components/site/CTABanner";
 import { getProject, type Project } from "@/lib/projects";
 import { loadPortfolio } from "@/lib/portfolio-source";
+import { LikeButton } from "@/components/site/LikeButton";
 
 export const Route = createFileRoute("/portfolio/$projectId")({
   head: ({ params }) => {
@@ -89,6 +90,7 @@ function ProjectPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{p.category} · {p.year}</p>
             <h1 className="mt-3 font-display text-4xl font-bold tracking-tight md:text-5xl text-balance">{p.title}</h1>
             <p className="mt-4 max-w-2xl text-muted-foreground">{p.summary}</p>
+            <LikeButton slug={p.slug} title={p.title} variant="pill" className="mt-6" />
           </div>
           <dl className="grid grid-cols-2 gap-3">
             {p.stats.map((s) => (

@@ -12,6 +12,13 @@ export function isAnalyticsEnabled() {
   return Boolean(GA_MEASUREMENT_ID) && typeof window !== "undefined";
 }
 
+export function trackEvent(name: string, params: Record<string, unknown> = {}) {
+  if (!isAnalyticsEnabled()) return;
+  window.dataLayer = window.dataLayer || [];
+  if (typeof window.gtag === "function") window.gtag("event", name, params);
+  else window.dataLayer.push(["event", name, params]);
+}
+
 export function trackPageview(path: string) {
   if (!isAnalyticsEnabled()) return;
   // Queue even before gtag.js finishes loading (stub pushes into dataLayer).

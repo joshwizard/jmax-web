@@ -6,16 +6,14 @@ import { ProductCard } from "@/components/site/ProductCard";
 import { CTABanner } from "@/components/site/CTABanner";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { TypeBadge } from "@/components/site/TypeBadge";
+import { LikeButton } from "@/components/site/LikeButton";
 import { products as seedProducts, productFromDb, type Product } from "@/lib/products";
 import { loadPortfolio } from "@/lib/portfolio-source";
+import type { Project } from "@/lib/projects";
 import { loadProductMedia } from "@/lib/product-gallery";
 import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 import { supabase } from "@/integrations/supabase/client";
 import hero from "@/assets/hero-construction.jpg";
-import project1 from "@/assets/project-1.jpg";
-import project2 from "@/assets/project-2.jpg";
-import project3 from "@/assets/project-3.jpg";
-
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -56,36 +54,24 @@ const testimonials = [
   },
 ];
 
-type LatestProject = {
-  slug: string;
-  title: string;
-  category: string;
-  location: string;
-  cover: string;
-};
-
 function Index() {
   const [featured, setFeatured] = useState<Product[]>([]);
-  const [latest, setLatest] = useState<LatestProject | null>(null);
-  const projectImgs = [project1, project2, project3];
+  const [portfolio, setPortfolio] = useState<Project[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     loadPortfolio().then((list) => {
-      const p = list.find((x) => x.cover && x.cover !== "/placeholder.svg") ?? list[0];
-      if (cancelled || !p) return;
-      setLatest({
-        slug: p.slug,
-        title: p.title,
-        category: p.category || "Project",
-        location: p.location,
-        cover: p.cover,
-      });
+      if (!cancelled) setPortfolio(list);
     });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const withCovers = (portfolio || []).filter((p) => p.cover && p.cover !== "/placeholder.svg");
+  const latest = withCovers[0] ?? portfolio?.[0] ?? null;
+  const others = withCovers.filter((p) => p.slug !== latest?.slug);
+  const highlights = (others.length >= 3 ? others : withCovers).slice(0, 3);
 
   useEffect(() => {
     if (!MARKETPLACE_ENABLED) return;
@@ -251,27 +237,34 @@ function Index() {
             </Link>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
-            {projectImgs.map((src, i) => (
-              <Link
-                key={i}
-                to="/portfolio"
-                className="group relative aspect-[4/5] overflow-hidden rounded-xl bg-muted"
-              >
-                <img
-                  src={src}
-                  alt={`Project ${i + 1}`}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/10 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-5 text-ink-foreground">
-                  <p className="text-sm font-mono uppercase tracking-wider text-primary">Project 0{i + 1}</p>
-                  <h3 className="mt-1 font-display text-xl font-semibold">
-                    {["Karen Family Residence", "Meru Commercial Block", "Highlands Bungalow"][i]}
-                  </h3>
-                </div>
-              </Link>
-            ))}
+            {portfolio === null
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="aspect-[4/5] animate-pulse rounded-xl bg-muted" />
+                ))
+              : highlights.map((p) => (
+                  <div key={p.slug} className="relative">
+                    <LikeButton slug={p.slug} title={p.title} className="absolute right-3 top-3 z-10" />
+                    <Link
+                      to="/portfolio/$projectId"
+                      params={{ projectId: p.slug }}
+                      className="group relative block aspect-[4/5] overflow-hidden rounded-xl bg-muted"
+                    >
+                      <img
+                        src={p.cover}
+                        alt={p.title}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/10 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-5 text-ink-foreground">
+                        <p className="text-sm font-mono uppercase tracking-wider text-primary">
+                          {[p.category, p.location].filter(Boolean).join(" · ")}
+                        </p>
+                        <h3 className="mt-1 font-display text-xl font-semibold">{p.title}</h3>
+                      </div>
+                    </Link>
+                  </div>
+                ))}
           </div>
         </div>
       </section>

@@ -419,6 +419,27 @@ export type Database = {
         }
         Relationships: []
       }
+      project_likes: {
+        Row: {
+          created_at: string
+          id: string
+          project_slug: string
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_slug: string
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_slug?: string
+          visitor_id?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           brief: string | null
@@ -582,7 +603,14 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      project_like_stats: {
+        Row: {
+          last_liked_at: string | null
+          likes: number | null
+          project_slug: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_purchased: {
