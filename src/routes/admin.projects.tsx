@@ -3,9 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Plus, Upload, Image as ImageIcon, Download } from "lucide-react";
+import { Loader2, Plus, Upload, Image as ImageIcon, Download, Trash2 } from "lucide-react";
 import { projects as seedProjects, PROJECT_CATEGORIES } from "@/lib/projects";
 import { fileToBase64, uploadAdminFile } from "@/lib/storage.functions";
+import { compressImage, mapWithConcurrency } from "@/lib/image-upload";
+import { isSampleSlug, loadHiddenSamples, saveHiddenSamples } from "@/lib/portfolio-source";
 
 type ProjectRow = {
   id: string;
@@ -48,18 +50,57 @@ function ProjectsAdmin() {
   const [editing, setEditing] = useState<Partial<ProjectRow> | null>(null);
   const [busy, setBusy] = useState(false);
   const [importingSlug, setImportingSlug] = useState<string | null>(null);
+  const [hiddenSamples, setHiddenSamples] = useState<Set<string>>(new Set());
+  const [uploading, setUploading] = useState(false);
   const uploadFileFn = useServerFn(uploadAdminFile);
 
-  const seedOnly = useMemo(() => {
-    const dbSlugs = new Set((rows || []).map((r) => r.slug));
-    return seedProjects.filter((p) => !dbSlugs.has(p.slug));
-  }, [rows]);
+  const dbSlugs = useMemo(() => new Set((rows || []).map((r) => r.slug)), [rows]);
+
+  const seedOnly = useMemo(
+    () => seedProjects.filter((p) => !dbSlugs.has(p.slug) && !hiddenSamples.has(p.slug)),
+    [dbSlugs, hiddenSamples],
+  );
+
+  const removedSamples = useMemo(
+    () => seedProjects.filter((p) => !dbSlugs.has(p.slug) && hiddenSamples.has(p.slug)),
+    [dbSlugs, hiddenSamples],
+  );
+
+  const hideSample = async (slug: string) => {
+    if (!isSampleSlug(slug) || hiddenSamples.has(slug)) return;
+    const next = new Set(hiddenSamples).add(slug);
+    await saveHiddenSamples(uploadFileFn, next);
+    setHiddenSamples(next);
+  };
+
+  const removeSample = async (slug: string) => {
+    if (!confirm("Remove this sample from the public portfolio? You can restore it later.")) return;
+    try {
+      await hideSample(slug);
+      toast.success("Sample removed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not remove sample");
+    }
+  };
+
+  const restoreSamples = async () => {
+    const next = new Set(hiddenSamples);
+    removedSamples.forEach((p) => next.delete(p.slug));
+    try {
+      await saveHiddenSamples(uploadFileFn, next);
+      setHiddenSamples(next);
+      toast.success("Samples restored");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not restore samples");
+    }
+  };
 
   const importSeed = async (slug: string, openEditor: boolean) => {
     const seed = seedProjects.find((p) => p.slug === slug);
     if (!seed) return;
     setImportingSlug(slug);
     try {
+      await hideSample(slug);
       const payload = {
         slug: seed.slug,
         title: seed.title,
@@ -92,12 +133,16 @@ function ProjectsAdmin() {
   };
 
   const load = async () => {
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*")
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: false });
+    const [{ data, error }, hidden] = await Promise.all([
+      supabase
+        .from("projects")
+        .select("*")
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false }),
+      loadHiddenSamples(),
+    ]);
     if (error) toast.error(error.message);
+    setHiddenSamples(hidden);
     setRows(((data as unknown) as ProjectRow[]) || []);
   };
 
@@ -127,6 +172,7 @@ function ProjectsAdmin() {
         is_active: editing.is_active ?? true,
         sort_order: editing.sort_order ?? 0,
       };
+      await hideSample(payload.slug);
       const { error } = editing.id
         ? await supabase.from("projects").update(payload).eq("id", editing.id)
         : await supabase.from("projects").insert([payload]);
@@ -141,56 +187,73 @@ function ProjectsAdmin() {
     }
   };
 
-  const remove = async (id: string) => {
+  const remove = async (row: ProjectRow) => {
     if (!confirm("Delete this project?")) return;
-    const { error } = await supabase.from("projects").delete().eq("id", id);
+    try {
+      // Hide the built-in sample first so deleting its copy can't bring the sample back.
+      await hideSample(row.slug);
+    } catch (e) {
+      return toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+    const { error } = await supabase.from("projects").delete().eq("id", row.id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     load();
   };
 
+  const uploadImage = async (file: File, label: string) => {
+    const ready = await compressImage(file);
+    const res = await uploadFileFn({
+      data: {
+        bucket: "product-covers",
+        path: `projects/${editing?.slug || "tmp"}-${label}-${Date.now()}-${ready.name}`,
+        contentType: ready.type || "image/jpeg",
+        dataBase64: await fileToBase64(ready),
+      },
+    });
+    if (!res.publicUrl) throw new Error("Upload succeeded without a public URL");
+    return res.publicUrl;
+  };
+
   const uploadCover = async (file: File) => {
     if (!editing) return;
+    setUploading(true);
+    const toastId = toast.loading("Uploading cover…");
     try {
-      const path = `projects/${editing.slug || "tmp"}-${Date.now()}-${file.name}`;
-      const res = await uploadFileFn({
-        data: {
-          bucket: "product-covers",
-          path,
-          contentType: file.type || "image/jpeg",
-          dataBase64: await fileToBase64(file),
-        },
-      });
-      if (!res.publicUrl) throw new Error("Upload succeeded without a public URL");
-      setEditing({ ...editing, cover_url: res.publicUrl });
-      toast.success("Cover uploaded — click Save to apply");
+      const url = await uploadImage(file, "cover");
+      setEditing((prev) => (prev ? { ...prev, cover_url: url } : prev));
+      toast.success("Cover uploaded — click Save to apply", { id: toastId });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Cover upload failed");
+      toast.error(err instanceof Error ? err.message : "Cover upload failed", { id: toastId });
+    } finally {
+      setUploading(false);
     }
   };
 
   const uploadGallery = async (files: FileList) => {
     if (!editing) return;
-    const urls: string[] = [];
-    for (const file of Array.from(files)) {
+    const list = Array.from(files);
+    setUploading(true);
+    let done = 0;
+    const toastId = toast.loading(`Uploading 0 of ${list.length}…`);
+    const results = await mapWithConcurrency(list, 3, async (file, i) => {
       try {
-        const path = `projects/${editing.slug || "tmp"}-gallery-${Date.now()}-${file.name}`;
-        const res = await uploadFileFn({
-          data: {
-            bucket: "product-covers",
-            path,
-            contentType: file.type || "image/jpeg",
-            dataBase64: await fileToBase64(file),
-          },
-        });
-        if (res.publicUrl) urls.push(res.publicUrl);
+        return await uploadImage(file, `gallery-${i}`);
       } catch (err) {
         toast.error(`${file.name}: ${err instanceof Error ? err.message : "upload failed"}`);
+        return null;
+      } finally {
+        done += 1;
+        toast.loading(`Uploading ${done} of ${list.length}…`, { id: toastId });
       }
-    }
+    });
+    const urls = results.filter((u): u is string => Boolean(u));
+    setUploading(false);
     if (urls.length) {
-      setEditing({ ...editing, gallery: [...((editing.gallery as string[]) || []), ...urls] });
-      toast.success(`${urls.length} image(s) added to gallery — click Save to apply`);
+      setEditing((prev) => (prev ? { ...prev, gallery: [...((prev.gallery as string[]) || []), ...urls] } : prev));
+      toast.success(`${urls.length} image(s) added to gallery — click Save to apply`, { id: toastId });
+    } else {
+      toast.dismiss(toastId);
     }
   };
 
@@ -240,7 +303,7 @@ function ProjectsAdmin() {
                   <td className="p-3 text-xs">{r.is_active ? "✓" : "—"}</td>
                   <td className="p-3 text-right">
                     <button onClick={() => setEditing(r)} className="text-xs font-semibold text-primary hover:underline">Edit</button>
-                    <button onClick={() => remove(r.id)} className="ml-3 text-xs font-semibold text-destructive hover:underline">Delete</button>
+                    <button onClick={() => remove(r)} className="ml-3 text-xs font-semibold text-destructive hover:underline">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -284,12 +347,28 @@ function ProjectsAdmin() {
                       {importingSlug === p.slug ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
                       Import & edit
                     </button>
+                    <button
+                      onClick={() => removeSample(p.slug)}
+                      disabled={importingSlug === p.slug}
+                      className="ml-3 inline-flex items-center gap-1 text-xs font-semibold text-destructive hover:underline disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3 w-3" /> Remove
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {removedSamples.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {removedSamples.length} sample project(s) removed from the site.{" "}
+          <button onClick={restoreSamples} className="font-semibold text-primary hover:underline">
+            Restore
+          </button>
+        </p>
       )}
 
       {editing && (
@@ -341,7 +420,17 @@ function ProjectsAdmin() {
               <div className="rounded-md border border-border bg-card p-3">
                 <p className="flex items-center gap-1.5 text-xs font-semibold"><ImageIcon className="h-3.5 w-3.5" /> Cover image</p>
                 {editing.cover_url && <img src={editing.cover_url} alt="" className="mt-2 h-32 w-full rounded object-cover" />}
-                <input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])} className="mt-2 text-xs" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void uploadCover(f);
+                  }}
+                  className="mt-2 text-xs disabled:opacity-50"
+                />
               </div>
 
               <div className="rounded-md border border-border bg-card p-3">
@@ -366,10 +455,17 @@ function ProjectsAdmin() {
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => e.target.files && uploadGallery(e.target.files)}
-                  className="mt-2 text-xs"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files?.length) void uploadGallery(files);
+                    e.target.value = "";
+                  }}
+                  className="mt-2 text-xs disabled:opacity-50"
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">Select multiple files to upload at once.</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Select multiple files to upload at once. Large photos are resized automatically.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -383,7 +479,7 @@ function ProjectsAdmin() {
 
             <div className="mt-6 flex justify-end gap-2">
               <button onClick={() => setEditing(null)} className="rounded-md border border-border bg-card px-4 py-2 text-xs font-semibold hover:bg-accent">Cancel</button>
-              <button onClick={save} disabled={busy} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50">
+              <button onClick={save} disabled={busy || uploading} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50">
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Save
               </button>
             </div>

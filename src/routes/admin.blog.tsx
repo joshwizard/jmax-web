@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { seedBlogPosts } from "@/lib/blogs";
 import { fileToBase64, uploadAdminFile } from "@/lib/storage.functions";
+import { compressImage } from "@/lib/image-upload";
 
 type BlogRow = {
   id: string;
@@ -162,21 +163,23 @@ function BlogAdmin() {
 
   const uploadCover = async (file: File) => {
     if (!editing) return;
+    const toastId = toast.loading("Uploading cover…");
     try {
-      const path = `blog/${editing.slug || "tmp"}-${Date.now()}-${file.name}`;
+      const ready = await compressImage(file);
+      const path = `blog/${editing.slug || "tmp"}-${Date.now()}-${ready.name}`;
       const res = await uploadFileFn({
         data: {
           bucket: "product-covers",
           path,
-          contentType: file.type || "image/jpeg",
-          dataBase64: await fileToBase64(file),
+          contentType: ready.type || "image/jpeg",
+          dataBase64: await fileToBase64(ready),
         },
       });
       if (!res.publicUrl) throw new Error("Upload succeeded without a public URL");
-      setEditing({ ...editing, cover_url: res.publicUrl });
-      toast.success("Cover uploaded — click Save to apply");
+      setEditing((prev) => (prev ? { ...prev, cover_url: res.publicUrl } : prev));
+      toast.success("Cover uploaded — click Save to apply", { id: toastId });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Cover upload failed");
+      toast.error(err instanceof Error ? err.message : "Cover upload failed", { id: toastId });
     }
   };
 
@@ -206,22 +209,24 @@ function BlogAdmin() {
 
   const uploadInlineImage = async (file: File) => {
     if (!editing) return;
+    const toastId = toast.loading("Uploading image…");
     try {
-      const path = `blog/inline/${editing.slug || "tmp"}-${Date.now()}-${file.name}`;
+      const ready = await compressImage(file);
+      const path = `blog/inline/${editing.slug || "tmp"}-${Date.now()}-${ready.name}`;
       const res = await uploadFileFn({
         data: {
           bucket: "product-covers",
           path,
-          contentType: file.type || "image/jpeg",
-          dataBase64: await fileToBase64(file),
+          contentType: ready.type || "image/jpeg",
+          dataBase64: await fileToBase64(ready),
         },
       });
       if (!res.publicUrl) throw new Error("Upload did not return a public URL");
       const alt = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
       insertAtCursor(`![${alt}](${res.publicUrl})`);
-      toast.success("Image inserted into body — click Save to publish");
+      toast.success("Image inserted into body — click Save to publish", { id: toastId });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Image upload failed");
+      toast.error(err instanceof Error ? err.message : "Image upload failed", { id: toastId });
     }
   };
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { projects } from "@/lib/projects";
 import { seedBlogPosts } from "@/lib/blogs";
+import { PORTFOLIO_SETTINGS_PATH, parseHiddenSamples, visibleSamples } from "@/lib/portfolio-source";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const SITE_URL = "https://jmaxbuilders.com";
@@ -31,10 +31,23 @@ export const Route = createFileRoute("/sitemap.xml")({
         } catch {
           // Table may not exist yet — seed slugs still listed.
         }
+        const { data: projectRows } = await supabaseAdmin.from("projects").select("slug").eq("is_active", true);
+        let hiddenSamples = new Set<string>();
+        try {
+          const { data: settings } = await supabaseAdmin.storage.from("product-covers").download(PORTFOLIO_SETTINGS_PATH);
+          if (settings) hiddenSamples = parseHiddenSamples(JSON.parse(await settings.text()));
+        } catch {
+          // No settings file yet — every sample is still public.
+        }
+        const dbProjectSlugs = new Set((projectRows || []).map((p) => p.slug));
+        const projectSlugs = [
+          ...dbProjectSlugs,
+          ...visibleSamples(dbProjectSlugs, hiddenSamples).map((p) => p.slug),
+        ];
         const urls: string[] = [
           ...STATIC.map((p) => `${SITE_URL}${p}`),
           ...(productRows || []).map((p) => `${SITE_URL}/marketplace/${p.slug}`),
-          ...projects.map((p) => `${SITE_URL}/portfolio/${p.id}`),
+          ...projectSlugs.map((slug) => `${SITE_URL}/portfolio/${slug}`),
           ...blogSlugs.map((slug) => `${SITE_URL}/blog/${slug}`),
         ];
         const xml = `<?xml version="1.0" encoding="UTF-8"?>

@@ -13,10 +13,16 @@ export function isAnalyticsEnabled() {
 }
 
 export function trackPageview(path: string) {
-  if (!isAnalyticsEnabled() || !window.gtag) return;
-  window.gtag("event", "page_view", {
-    page_path: path,
-    page_location: window.location.href,
-    page_title: document.title,
-  });
+  if (!isAnalyticsEnabled()) return;
+  // Queue even before gtag.js finishes loading (stub pushes into dataLayer).
+  window.dataLayer = window.dataLayer || [];
+  if (typeof window.gtag === "function") {
+    window.gtag("event", "page_view", {
+      page_path: path,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
+  } else {
+    window.dataLayer.push(["event", "page_view", { page_path: path }]);
+  }
 }

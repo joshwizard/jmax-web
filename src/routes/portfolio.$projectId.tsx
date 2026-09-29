@@ -3,43 +3,8 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, MapPin, Calendar, Ruler, Users, Quote, CheckCircle2, AlertTriangle, ListChecks } from "lucide-react";
 import { Layout } from "@/components/site/Layout";
 import { CTABanner } from "@/components/site/CTABanner";
-import { getProject, projects, type Project, type ProjectCategory } from "@/lib/projects";
-import { supabase } from "@/integrations/supabase/client";
-
-async function fetchProject(slug: string): Promise<Project | null> {
-  const local = getProject(slug);
-  if (local) return local;
-  const { data } = await supabase.from("projects").select("*").eq("slug", slug).eq("is_active", true).maybeSingle();
-  if (!data) return null;
-  return {
-    id: data.id,
-    slug: data.slug,
-    title: data.title,
-    category: (data.category as ProjectCategory) || "Residential",
-    year: data.year || "",
-    location: data.location || "",
-    duration: data.duration || "",
-    buildingType: data.building_type || "",
-    size: data.size || "",
-    client: data.client || "",
-    cover: data.cover_url || "",
-    gallery: (() => {
-      const g = (data.gallery as string[] | { src: string; caption?: string }[] | null) || [];
-      const items = g.map((item) =>
-        typeof item === "string" ? { src: item, caption: data.title } : { src: item.src, caption: item.caption ?? data.title },
-      );
-      if (items.length === 0 && data.cover_url) items.push({ src: data.cover_url, caption: data.title });
-      return items;
-    })(),
-    summary: data.summary || "",
-    brief: data.brief || "",
-    scope: (data.scope as string[]) || [],
-    challenges: (data.challenges as { title: string; body: string }[]) || [],
-    outcomes: (data.outcomes as string[]) || [],
-    stats: (data.stats as { label: string; value: string }[]) || [],
-    testimonial: (data.testimonial as Project["testimonial"]) || undefined,
-  };
-}
+import { getProject, type Project } from "@/lib/projects";
+import { loadPortfolio } from "@/lib/portfolio-source";
 
 export const Route = createFileRoute("/portfolio/$projectId")({
   head: ({ params }) => {
@@ -75,19 +40,28 @@ export const Route = createFileRoute("/portfolio/$projectId")({
 
 function ProjectPage() {
   const { projectId } = Route.useParams();
-  const [p, setP] = useState<Project | null | undefined>(() => getProject(projectId) ?? undefined);
+  const [list, setList] = useState<Project[] | null>(null);
   const [activeImg, setActiveImg] = useState(0);
   useEffect(() => {
-    if (p === undefined) fetchProject(projectId).then(setP);
-  }, [projectId, p]);
+    let cancelled = false;
+    setList(null);
+    setActiveImg(0);
+    loadPortfolio().then((items) => {
+      if (!cancelled) setList(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
-  if (p === undefined) {
+  if (list === null) {
     return <Layout><div className="container-page py-24 text-center text-sm text-muted-foreground">Loading…</div></Layout>;
   }
-  if (p === null) throw notFound();
-  const idx = projects.findIndex((x) => x.slug === p.slug);
-  const prev = idx > 0 ? projects[idx - 1] : null;
-  const next = idx >= 0 && idx < projects.length - 1 ? projects[idx + 1] : null;
+  const idx = list.findIndex((x) => x.slug === projectId);
+  if (idx === -1) throw notFound();
+  const p = list[idx];
+  const prev = idx > 0 ? list[idx - 1] : null;
+  const next = idx < list.length - 1 ? list[idx + 1] : null;
 
   const meta = [
     { icon: MapPin, label: "Location", value: p.location },

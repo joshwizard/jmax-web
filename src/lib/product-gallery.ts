@@ -7,6 +7,7 @@ import {
   slugify,
 } from "@/lib/products";
 import { fileToBase64, uploadAdminFile } from "@/lib/storage.functions";
+import { compressImage, mapWithConcurrency } from "@/lib/image-upload";
 
 type UploadFn = (args: {
   data: {
@@ -113,21 +114,20 @@ export async function uploadProductGalleryImages(
   const remaining = PRODUCT_GALLERY_MAX - current.length;
   if (remaining <= 0) throw new Error(`Maximum ${PRODUCT_GALLERY_MAX} images`);
   const toUpload = files.slice(0, remaining);
-  const urls: string[] = [];
   const base = slugify(slug) || "tmp";
-  for (const file of toUpload) {
-    const path = `gallery/${base}/${Date.now()}-${file.name}`;
+  const urls = await mapWithConcurrency(toUpload, 3, async (file, i) => {
+    const ready = await compressImage(file);
     const res = await uploadFn({
       data: {
         bucket: "product-covers",
-        path,
-        contentType: file.type || "image/jpeg",
-        dataBase64: await fileToBase64(file),
+        path: `gallery/${base}/${Date.now()}-${i}-${ready.name}`,
+        contentType: ready.type || "image/jpeg",
+        dataBase64: await fileToBase64(ready),
       },
     });
-    if (res.publicUrl) urls.push(res.publicUrl);
-  }
-  return normalizeProductImages(null, [...current, ...urls]);
+    return res.publicUrl;
+  });
+  return normalizeProductImages(null, [...current, ...urls.filter((u): u is string => Boolean(u))]);
 }
 
 export async function uploadProductSheets(
@@ -140,21 +140,24 @@ export async function uploadProductSheets(
   const remaining = PRODUCT_SHEETS_MAX - current.length;
   if (remaining <= 0) throw new Error(`Maximum ${PRODUCT_SHEETS_MAX} drawing sheets`);
   const toUpload = files.slice(0, remaining);
-  const next = [...current];
   const base = slugify(slug) || "tmp";
-  for (const file of toUpload) {
-    const path = `gallery/${base}/sheets/${Date.now()}-${file.name}`;
+  const urls = await mapWithConcurrency(toUpload, 3, async (file, i) => {
+    // Drawings need fine line detail, so keep them larger and sharper than photos.
+    const ready = await compressImage(file, { maxDimension: 3200, quality: 0.9 });
     const res = await uploadFn({
       data: {
         bucket: "product-covers",
-        path,
-        contentType: file.type || "image/jpeg",
-        dataBase64: await fileToBase64(file),
+        path: `gallery/${base}/sheets/${Date.now()}-${i}-${ready.name}`,
+        contentType: ready.type || "image/jpeg",
+        dataBase64: await fileToBase64(ready),
       },
     });
-    if (res.publicUrl) next.push({ src: res.publicUrl, label: label || "Drawing sheet" });
-  }
-  return normalizeProductSheets(next);
+    return res.publicUrl;
+  });
+  const added = urls
+    .filter((u): u is string => Boolean(u))
+    .map((src) => ({ src, label: label || "Drawing sheet" }));
+  return normalizeProductSheets([...current, ...added]);
 }
 
 export { PRODUCT_GALLERY_MAX, PRODUCT_SHEETS_MAX };

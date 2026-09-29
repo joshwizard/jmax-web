@@ -7,7 +7,7 @@ import { CTABanner } from "@/components/site/CTABanner";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { TypeBadge } from "@/components/site/TypeBadge";
 import { products as seedProducts, productFromDb, type Product } from "@/lib/products";
-import { projects as seedProjects } from "@/lib/projects";
+import { loadPortfolio } from "@/lib/portfolio-source";
 import { loadProductMedia } from "@/lib/product-gallery";
 import { MARKETPLACE_ENABLED } from "@/lib/marketplace";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,38 +66,22 @@ type LatestProject = {
 
 function Index() {
   const [featured, setFeatured] = useState<Product[]>([]);
-  const [latest, setLatest] = useState<LatestProject>(() => {
-    const p = seedProjects[0];
-    return {
-      slug: p.slug,
-      title: p.title,
-      category: p.category,
-      location: p.location,
-      cover: p.cover,
-    };
-  });
+  const [latest, setLatest] = useState<LatestProject | null>(null);
   const projectImgs = [project1, project2, project3];
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("projects")
-        .select("slug, title, category, location, cover_url")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (cancelled || !data?.cover_url) return;
+    loadPortfolio().then((list) => {
+      const p = list.find((x) => x.cover && x.cover !== "/placeholder.svg") ?? list[0];
+      if (cancelled || !p) return;
       setLatest({
-        slug: data.slug,
-        title: data.title,
-        category: data.category || "Project",
-        location: data.location || "",
-        cover: data.cover_url,
+        slug: p.slug,
+        title: p.title,
+        category: p.category || "Project",
+        location: p.location,
+        cover: p.cover,
       });
-    })();
+    });
     return () => {
       cancelled = true;
     };
@@ -171,30 +155,34 @@ function Index() {
           </div>
 
           <div className="md:col-span-6 lg:col-span-6">
-            <Link
-              to="/portfolio/$projectId"
-              params={{ projectId: latest.slug }}
-              className="group relative block overflow-hidden rounded-2xl border border-ink-foreground/15 bg-ink-foreground/5 shadow-2xl shadow-black/40"
-            >
-              <div className="aspect-[4/5] sm:aspect-[5/4] md:aspect-[4/5] lg:aspect-[5/4]">
-                <img
-                  src={latest.cover}
-                  alt={latest.title}
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">Latest project</p>
-                <h2 className="mt-1 font-display text-xl font-bold md:text-2xl">{latest.title}</h2>
-                <p className="mt-1 text-base text-ink-foreground/70">
-                  {[latest.category, latest.location].filter(Boolean).join(" · ")}
-                </p>
-                <span className="mt-3 inline-flex items-center gap-1 text-base font-semibold text-primary">
-                  View case study <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </span>
-              </div>
-            </Link>
+            {latest ? (
+              <Link
+                to="/portfolio/$projectId"
+                params={{ projectId: latest.slug }}
+                className="group relative block overflow-hidden rounded-2xl border border-ink-foreground/15 bg-ink-foreground/5 shadow-2xl shadow-black/40"
+              >
+                <div className="aspect-[4/5] sm:aspect-[5/4] md:aspect-[4/5] lg:aspect-[5/4]">
+                  <img
+                    src={latest.cover}
+                    alt={latest.title}
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">Latest project</p>
+                  <h2 className="mt-1 font-display text-xl font-bold md:text-2xl">{latest.title}</h2>
+                  <p className="mt-1 text-base text-ink-foreground/70">
+                    {[latest.category, latest.location].filter(Boolean).join(" · ")}
+                  </p>
+                  <span className="mt-3 inline-flex items-center gap-1 text-base font-semibold text-primary">
+                    View case study <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </Link>
+            ) : (
+              <div className="aspect-[4/5] animate-pulse rounded-2xl border border-ink-foreground/15 bg-ink-foreground/5 sm:aspect-[5/4] md:aspect-[4/5] lg:aspect-[5/4]" />
+            )}
           </div>
         </div>
 

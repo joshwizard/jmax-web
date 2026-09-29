@@ -4,8 +4,8 @@ import { Layout } from "@/components/site/Layout";
 import { SectionHeader } from "@/components/site/SectionHeader";
 import { CTABanner } from "@/components/site/CTABanner";
 import { ArrowRight, Search } from "lucide-react";
-import { projects as seedProjects, PROJECT_CATEGORIES, type Project, type ProjectCategory } from "@/lib/projects";
-import { supabase } from "@/integrations/supabase/client";
+import { PROJECT_CATEGORIES, type Project } from "@/lib/projects";
+import { loadPortfolio } from "@/lib/portfolio-source";
 
 export const Route = createFileRoute("/portfolio/")({
   head: () => ({
@@ -22,59 +22,27 @@ export const Route = createFileRoute("/portfolio/")({
 function Portfolio() {
   const [filter, setFilter] = useState<string>("All");
   const [query, setQuery] = useState("");
-  const [dbItems, setDbItems] = useState<Project[]>([]);
+  const [all, setAll] = useState<Project[] | null>(null);
 
   useEffect(() => {
-    const seedBySlug = new Map(seedProjects.map((p) => [p.slug, p]));
-    supabase
-      .from("projects")
-      .select("id, slug, title, category, year, location, duration, building_type, size, cover_url, summary")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .then(({ data }) => {
-        if (!data) return;
-        setDbItems(
-          data.map((r) => {
-            const seed = seedBySlug.get(r.slug);
-            return {
-              id: r.id,
-              slug: r.slug,
-              title: r.title,
-              category: (r.category as ProjectCategory) || seed?.category || "Residential",
-              year: r.year || seed?.year || "",
-              location: r.location || seed?.location || "",
-              duration: r.duration || seed?.duration || "",
-              buildingType: r.building_type || seed?.buildingType || "",
-              size: r.size || seed?.size || "",
-              client: seed?.client || "",
-              cover: r.cover_url || seed?.cover || "/placeholder.svg",
-              gallery: seed?.gallery || [],
-              summary: r.summary || seed?.summary || "",
-              brief: seed?.brief || "",
-              scope: seed?.scope || [],
-              challenges: seed?.challenges || [],
-              outcomes: seed?.outcomes || [],
-              stats: seed?.stats || [],
-            };
-          })
-        );
-      });
+    let cancelled = false;
+    loadPortfolio().then((list) => {
+      if (!cancelled) setAll(list);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const all = useMemo(() => {
-    const seen = new Set<string>();
-    return [...dbItems, ...seedProjects].filter((p) => (seen.has(p.slug) ? false : (seen.add(p.slug), true)));
-  }, [dbItems]);
-
   const filters = useMemo(() => {
-    const present = new Set(all.map((p) => p.category).filter(Boolean));
+    const present = new Set((all || []).map((p) => p.category).filter(Boolean));
     const extras = [...present].filter((c) => !(PROJECT_CATEGORIES as readonly string[]).includes(c));
     return ["All", ...PROJECT_CATEGORIES, ...extras.sort()];
   }, [all]);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return all.filter((p) => {
+    return (all || []).filter((p) => {
       if (filter !== "All" && p.category !== filter) return false;
       if (!q) return true;
       const haystack = [p.title, p.category, p.location, p.buildingType, p.size, p.summary, p.year]
@@ -122,7 +90,13 @@ function Portfolio() {
           ))}
         </div>
 
-        {list.length === 0 ? (
+        {all === null ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="aspect-[4/5] animate-pulse rounded-xl border border-border bg-muted" />
+            ))}
+          </div>
+        ) : list.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border bg-secondary/30 p-10 text-center text-base text-muted-foreground">
             No projects match that filter{query ? ` or “${query.trim()}”` : ""}. Try another type or clear search.
           </p>
