@@ -123,7 +123,7 @@ function BlogIndex() {
                 params={{ slug: post.slug }}
                 className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
               >
-                <div className="aspect-[16/10] overflow-hidden bg-muted">
+                <div className="aspect-video overflow-hidden bg-muted">
                   <img
                     src={post.coverUrl}
                     alt=""

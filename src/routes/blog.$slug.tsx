@@ -92,8 +92,8 @@ function BlogPostPage() {
 
         {post.coverUrl && post.coverUrl !== "/placeholder.svg" && (
           <div className="container-page pt-8">
-            <div className="overflow-hidden rounded-2xl border border-border bg-muted">
-              <img src={post.coverUrl} alt="" className="aspect-[21/9] w-full object-cover" />
+            <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-border bg-muted">
+              <img src={post.coverUrl} alt={post.title} className="block h-auto w-full" />
             </div>
           </div>
         )}
