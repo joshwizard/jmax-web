@@ -141,49 +141,137 @@ export function formatBlogDate(iso: string) {
   return d.toLocaleDateString("en-KE", { year: "numeric", month: "long", day: "numeric" });
 }
 
-/** Very small markdown-ish renderer for blog body (headings, paragraphs, images). */
+/** Inline markdown: **bold**, *italic*, [links](url). */
+export type InlineNode =
+  | string
+  | { type: "strong"; children: InlineNode[] }
+  | { type: "em"; children: InlineNode[] }
+  | { type: "link"; href: string; children: InlineNode[] };
+
+type TextBlockType = "h1" | "h2" | "h3" | "p";
+type ListBlockType = "ul" | "ol";
+
+/** Small markdown renderer for blog bodies (headings, paragraphs, lists, rules, images). */
 export type BlogBlock =
-  | { type: "h1" | "h2" | "p"; text: string }
+  | { [K in TextBlockType]: { type: K; content: InlineNode[] } }[TextBlockType]
+  | { [K in ListBlockType]: { type: K; items: InlineNode[][] } }[ListBlockType]
+  | { type: "hr" }
   | { type: "img"; src: string; alt: string };
 
 const IMAGE_RE = /^!\[([^\]]*)\]\(([^)\s]+)\)(?:\s*"([^"]*)")?\s*$/;
+const HEADING_RE = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
+const RULE_RE = /^(?:-{3,}|\*{3,}|_{3,})$/;
+const BULLET_RE = /^[-*+•]\s+(.*)$/;
+const NUMBERED_RE = /^\d+[.)]\s+(.*)$/;
 
-export function renderBlogBody(body: string): BlogBlock[] {
+const INLINE_RE =
+  /\*\*(.+?)\*\*|__(.+?)__|\*(?!\s)(.+?)(?<!\s)\*|(?<![A-Za-z0-9])_(?!\s)(.+?)(?<!\s)_(?![A-Za-z0-9])|\[([^\]]+)\]\(([^)\s]+)\)/g;
+
+function safeHref(href: string) {
+  return /^(https?:|mailto:|tel:|\/|#)/i.test(href) ? href : null;
+}
+
+export function parseInline(text: string): InlineNode[] {
+  const nodes: InlineNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(INLINE_RE)) {
+    const start = m.index ?? 0;
+    if (start > last) nodes.push(text.slice(last, start));
+    const [whole, b1, b2, i1, i2, linkText, href] = m;
+    if (b1 || b2) nodes.push({ type: "strong", children: parseInline((b1 || b2)!) });
+    else if (i1 || i2) nodes.push({ type: "em", children: parseInline((i1 || i2)!) });
+    else if (linkText) {
+      const safe = safeHref(href);
+      nodes.push(safe ? { type: "link", href: safe, children: parseInline(linkText) } : whole);
+    }
+    last = start + whole.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
+function inlineToText(nodes: InlineNode[]): string {
+  return nodes.map((n) => (typeof n === "string" ? n : inlineToText(n.children))).join("");
+}
+
+export function renderBlogBody(body: string, title?: string): BlogBlock[] {
   const result: BlogBlock[] = [];
-  const blocks = body.trim().split(/\n{2,}/);
+  let para: string[] = [];
+  let list: { type: "ul" | "ol"; items: string[] } | null = null;
 
-  for (const block of blocks) {
-    const trimmed = block.trim();
-    if (!trimmed) continue;
+  const flushPara = () => {
+    if (para.length) result.push({ type: "p", content: parseInline(para.join(" ")) });
+    para = [];
+  };
+  const flushList = () => {
+    if (list) result.push({ type: list.type, items: list.items.map(parseInline) });
+    list = null;
+  };
+  const flush = () => {
+    flushPara();
+    flushList();
+  };
 
-    const img = trimmed.match(IMAGE_RE);
+  for (const raw of body.replace(/\r\n?/g, "\n").split("\n")) {
+    const line = raw.trim();
+    if (!line) {
+      flush();
+      continue;
+    }
+
+    const img = line.match(IMAGE_RE);
     if (img) {
-      result.push({
-        type: "img",
-        alt: img[1].trim() || img[3]?.trim() || "",
-        src: img[2].trim(),
-      });
+      flush();
+      result.push({ type: "img", alt: img[1].trim() || img[3]?.trim() || "", src: img[2].trim() });
       continue;
     }
 
-    const lines = trimmed.split("\n");
-    const first = lines[0]?.trim() ?? "";
-
-    if (first.startsWith("## ")) {
-      result.push({ type: "h2", text: first.slice(3).trim() });
-      const rest = lines.slice(1).join("\n").trim();
-      if (rest) result.push({ type: "p", text: rest.replace(/\n/g, " ") });
+    const heading = line.match(HEADING_RE);
+    if (heading) {
+      flush();
+      const level = heading[1].length;
+      const type = level === 1 ? "h1" : level === 2 ? "h2" : "h3";
+      result.push({ type, content: parseInline(heading[2]) });
       continue;
     }
 
-    if (first.startsWith("# ")) {
-      result.push({ type: "h1", text: first.slice(2).trim() });
-      const rest = lines.slice(1).join("\n").trim();
-      if (rest) result.push({ type: "p", text: rest.replace(/\n/g, " ") });
+    if (RULE_RE.test(line)) {
+      flush();
+      result.push({ type: "hr" });
       continue;
     }
 
-    result.push({ type: "p", text: trimmed.replace(/\n/g, " ") });
+    const bullet = line.match(BULLET_RE);
+    const numbered = bullet ? null : line.match(NUMBERED_RE);
+    if (bullet || numbered) {
+      flushPara();
+      const type = bullet ? "ul" : "ol";
+      if (!list || list.type !== type) {
+        flushList();
+        list = { type, items: [] };
+      }
+      list.items.push((bullet ?? numbered)![1]);
+      continue;
+    }
+
+    if (list && /^\s{2,}/.test(raw)) {
+      list.items[list.items.length - 1] += ` ${line}`;
+      continue;
+    }
+
+    flushList();
+    para.push(line);
+  }
+  flush();
+
+  // A leading "# Title" repeats the page title shown above the article.
+  const first = result[0];
+  if (
+    title &&
+    first?.type === "h1" &&
+    inlineToText(first.content).trim().toLowerCase() === title.trim().toLowerCase()
+  ) {
+    result.shift();
   }
 
   return result;

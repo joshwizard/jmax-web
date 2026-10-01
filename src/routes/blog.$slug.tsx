@@ -8,6 +8,7 @@ import {
   formatBlogDate,
   renderBlogBody,
   type BlogPost,
+  type InlineNode,
 } from "@/lib/blogs";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -65,7 +66,7 @@ function BlogPostPage() {
     );
   }
 
-  const blocks = renderBlogBody(post.body);
+  const blocks = renderBlogBody(post.body, post.title);
 
   return (
     <Layout>
@@ -102,12 +103,20 @@ function BlogPostPage() {
             {blocks.map((b, i) =>
               b.type === "h2" ? (
                 <h2 key={i} className="pt-4 font-sans text-lg font-bold tracking-tight text-foreground md:text-xl">
-                  {b.text}
+                  <Inline nodes={b.content} />
                 </h2>
               ) : b.type === "h1" ? (
                 <h2 key={i} className="pt-4 font-sans text-xl font-bold tracking-tight text-foreground md:text-2xl">
-                  {b.text}
+                  <Inline nodes={b.content} />
                 </h2>
+              ) : b.type === "h3" ? (
+                <h3 key={i} className="pt-2 font-sans text-base font-bold tracking-tight text-foreground md:text-lg">
+                  <Inline nodes={b.content} />
+                </h3>
+              ) : b.type === "ul" || b.type === "ol" ? (
+                <ListBlock key={i} ordered={b.type === "ol"} items={b.items} />
+              ) : b.type === "hr" ? (
+                <hr key={i} className="my-8 border-border" />
               ) : b.type === "img" ? (
                 <figure key={i} className="my-2 overflow-hidden rounded-xl border border-border bg-muted">
                   <img src={b.src} alt={b.alt || ""} className="w-full object-cover" loading="lazy" />
@@ -119,7 +128,7 @@ function BlogPostPage() {
                 </figure>
               ) : (
                 <p key={i} className="font-sans text-sm font-normal leading-[1.75] text-foreground/85 md:text-base md:leading-[1.75]">
-                  {b.text}
+                  <Inline nodes={b.content} />
                 </p>
               ),
             )}
@@ -136,5 +145,51 @@ function BlogPostPage() {
         </section>
       </article>
     </Layout>
+  );
+}
+
+function Inline({ nodes }: { nodes: InlineNode[] }) {
+  return (
+    <>
+      {nodes.map((n, i) =>
+        typeof n === "string" ? (
+          n
+        ) : n.type === "strong" ? (
+          <strong key={i} className="font-semibold text-foreground">
+            <Inline nodes={n.children} />
+          </strong>
+        ) : n.type === "em" ? (
+          <em key={i}>
+            <Inline nodes={n.children} />
+          </em>
+        ) : (
+          <a
+            key={i}
+            href={n.href}
+            className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
+            {...(/^https?:/i.test(n.href) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          >
+            <Inline nodes={n.children} />
+          </a>
+        ),
+      )}
+    </>
+  );
+}
+
+function ListBlock({ ordered, items }: { ordered: boolean; items: InlineNode[][] }) {
+  const Tag = ordered ? "ol" : "ul";
+  return (
+    <Tag
+      className={`space-y-1.5 pl-6 font-sans text-sm font-normal leading-[1.7] text-foreground/85 marker:text-primary md:text-base ${
+        ordered ? "list-decimal" : "list-disc"
+      }`}
+    >
+      {items.map((item, i) => (
+        <li key={i} className="pl-1">
+          <Inline nodes={item} />
+        </li>
+      ))}
+    </Tag>
   );
 }
